@@ -1,0 +1,66 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - banner [ref=e5]:
+        - generic [ref=e6]:
+          - paragraph [ref=e7]: jam
+          - generic [ref=e11]: lets
+        - paragraph [ref=e12]:
+          - text: Together is a
+          - emphasis [ref=e13]: Neverfound
+          - text: venture exploring how teams collaborate with AI
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "What can we solve together?" [level=1] [ref=e16]:
+            - text: What can we
+            - text: solve together?
+          - img "Examples of strategic decisions teams have used Together for" [ref=e18]
+          - button "Begin" [ref=e19]
+        - img "A person using Together on their laptop" [ref=e21]
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Host meetings where decisions actually get made fairly" [level=2] [ref=e24]:
+          - text: Host meetings where decisions
+          - text: actually get made
+          - emphasis [ref=e25]: fairly
+        - paragraph [ref=e26]: Inspired by the foundations of design thinking and facilitation
+        - button "Begin" [ref=e27]
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - article [ref=e31]:
+            - paragraph [ref=e32]: Converse
+            - heading "When the team needs to talk it out" [level=3] [ref=e33]:
+              - text: When the team needs
+              - text: to talk it out
+            - paragraph [ref=e34]: A short, time-boxed discussion when something needs to be talked through and surfaced. While you talk, the decisions you're actually making get pulled out into a list — so you leave with a list of calls to make, not a transcript.
+          - article [ref=e35]:
+            - paragraph [ref=e36]: Collaborate
+            - heading "When the team has ideas but can't agree on the actual answer" [level=3] [ref=e37]
+            - paragraph [ref=e38]: Once everyone's thinking is on the table, you don't end up with twenty half-formed opinions or one watered-down compromise. You get two real options to choose between — each one shaped by whose thinking shaped it.
+        - img "Together's Personal Space view, where each participant captures private notes" [ref=e40]
+        - generic [ref=e41]:
+          - article [ref=e42]:
+            - paragraph [ref=e43]: Reflect
+            - heading "When you need every voice on the table" [level=3] [ref=e44]
+            - paragraph [ref=e45]: Everyone writes their take privately against the same prompt. Nothing's visible until the timer's up, so the room sees what each person actually thinks — not what they say after hearing someone else.
+          - article [ref=e46]:
+            - paragraph [ref=e47]: Decide
+            - heading "When the call has to stick" [level=3] [ref=e48]
+            - paragraph [ref=e49]: Vote openly, commit publicly. If two people aren't on board, it goes back for another round. If you're in the minority, you write down why — and that travels with the decision, so nobody re-litigates it in Slack on Thursday.
+      - generic [ref=e51]:
+        - paragraph [ref=e52]: Our promise
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - paragraph [ref=e55]: "We started together with a frustration: strategic decisions inside teams don't actually get made in meetings. They get made in 1:1s after the meeting, in DMs the day after, or — most often — they don't get made at all, and the team relitigates the same question three weeks later in a new meeting room."
+            - paragraph [ref=e56]: The cost of this isn't time. It's commitment. Decisions made this way are decisions nobody owns. They unravel the moment someone pushes back in Slack, and the team learns to stop bringing real disagreement to the table.
+            - paragraph [ref=e57]: "We don't think the solution is better meetings. We think the solution is a different kind of meeting — one where the structure of the conversation forces the room to do what good facilitators have always done by hand: get private thinking on the table before group thinking distorts it, surface the real disagreement instead of papering over it, and refuse to lock a decision until every dissent has been heard."
+            - paragraph [ref=e58]: That's what Together is. A room where AI runs the methodology, the team does the thinking, and the call you make at the end is one the whole room actually committed to — not the loudest person's preference dressed up as consensus.
+            - paragraph [ref=e59]: Our mission is to make team strategic decisions sharper, faster, and honest. We think most teams have far better strategic instincts than their meetings let them express. Discourse is the room that lets them.
+          - generic [ref=e62]:
+            - img "Simon Carriere signature" [ref=e64]
+            - paragraph [ref=e65]: Simon Carriere
+            - paragraph [ref=e66]: Co-founder, Head of Growth
+      - contentinfo [ref=e67]: © 2026 Together — a Neverfound venture
+  - button "Open Next.js Dev Tools" [ref=e73] [cursor=pointer]:
+    - img [ref=e74]
+  - alert [ref=e77]

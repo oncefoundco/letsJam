@@ -1,0 +1,64 @@
+[     120ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[     138ms] [LOG] [HMR] connected @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   23864ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   23946ms] [LOG] [Fast Refresh] done in 105ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   24073ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   24393ms] [LOG] [Fast Refresh] done in 422ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   24496ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   24806ms] [LOG] [Fast Refresh] done in 412ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   24909ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   25116ms] [LOG] [Fast Refresh] done in 307ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   25217ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   25480ms] [LOG] [Fast Refresh] done in 364ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   25489ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3001/?_rsc=q3mOO9BClNZHexY7:0
+[   25594ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   25775ms] [LOG] [Fast Refresh] done in 283ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   25878ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   26281ms] [LOG] [Fast Refresh] done in 504ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   26382ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   26567ms] [LOG] [Fast Refresh] done in 286ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   26591ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3001/:0
+[   27794ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/_next/static/chunks/node_modules_react-dom_0bruynb._.js:15305
+[   27845ms] ReferenceError: Fraunces is not defined
+    at module evaluation (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[root-of-the-server]__07fibls._.js:104:18)
+    at <unknown> (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1291:27)
+    at runWithHooks (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1554:9)
+    at instantiateModuleShared (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1289:9)
+    at instantiateModule (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1557:23)
+    at getOrInstantiateModuleFromParent (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1593:23)
+    at Context.esmImport [as i] (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:281:20)
+    at module evaluation (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[root-of-the-server]__07fibls._.js:141:47)
+    at <unknown> (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1291:27)
+    at runWithHooks (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1554:9)
+    at instantiateModuleShared (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1289:9)
+    at instantiateModule (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1557:23)
+    at getOrInstantiateModuleFromParent (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:1593:23)
+    at Context.commonJsRequire [as r] (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/[turbopack]_runtime.js:302:12)
+    at Array.__TURBOPACK__layout__$23$1__ (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/node_modules_0ungvoo._.js:7320:64)
+    at getLayoutOrPageModule (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:65:6301)
+    at anySegmentHasRuntimePrefetchEnabled (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:69:16701)
+    at generateDynamicRSCPayload (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:69:23037)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    at generateDynamicFlightRenderResult (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:69:26393)
+    at renderToHTMLOrFlightImpl (file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.dev.js:69:55542)
+[   27877ms] [LOG] [HMR] connected @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[   28855ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[   29418ms] [LOG] [Fast Refresh] done in 639ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_0u_w_5s._.js:1226
+[   29593ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3001/:0
+[   29648ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   29659ms] [LOG] [HMR] connected @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   29791ms] ReferenceError: fraunces is not defined
+    at RootLayout (about://React/Server/file:///Users/_moonbytes/Documents/NeverFound/neverfound_1/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__10ekyd_._.js?0:141:514)
+    at resolveErrorDev (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:1919:105)
+    at processFullStringRow (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2434:29)
+    at processFullBinaryRow (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2393:9)
+    at processBinaryChunk (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2502:221)
+    at progress (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_0p3wegg._.js:2689:13)
+[   32805ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   32873ms] [LOG] [Fast Refresh] done in 16ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   32984ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   33000ms] [LOG] [HMR] connected @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   36682ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   36711ms] [LOG] [Fast Refresh] done in 40ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   43078ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
+[   43107ms] [LOG] [Fast Refresh] done in 31ms @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477
