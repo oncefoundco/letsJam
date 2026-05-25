@@ -2,10 +2,8 @@
 
 import { useRef, useState } from "react";
 
-const INITIAL_FILES = ["2026-CRM-deals.csv", "Q2-ProductRoadmap.pdf"];
-
 export function UploadContext() {
-  const [files, setFiles] = useState<string[]>(INITIAL_FILES);
+  const [files, setFiles] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handlePickClick() {

@@ -4,7 +4,7 @@ export const metadata = {
   title: "Session — Together",
 };
 
-const TOPIC =
+const DEFAULT_TOPIC =
   "Why is our enterprise expansion stalling, and what should we do about it in Q1?";
 
 type Participant = {
@@ -32,11 +32,17 @@ const VIDEO_TILES: { initial: string; bg: string; active?: boolean }[] = [
   { initial: "P", bg: "linear-gradient(135deg, #c97564, #5b2b21)", active: true },
 ];
 
-export default function SessionPage() {
+export default async function SessionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string }>;
+}) {
+  const { topic } = await searchParams;
+  const sessionTopic = topic?.trim() || DEFAULT_TOPIC;
   return (
     <div className="flex min-h-screen items-start gap-6 bg-background p-6 md:gap-8 md:p-8">
       <MainColumn />
-      <Sidebar />
+      <Sidebar topic={sessionTopic} />
     </div>
   );
 }
@@ -112,20 +118,20 @@ function VideoTile({
   );
 }
 
-function Sidebar() {
+function Sidebar({ topic }: { topic: string }) {
   return (
     <aside className="flex h-[calc(100vh-4rem)] w-full flex-col justify-between rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
       <div className="flex flex-col gap-16">
-        <SessionInfo />
+        <SessionInfo topic={topic} />
         <InWaitingRoom />
         <SessionContext />
       </div>
-      <AiPanel />
+      <AiPanel topic={topic} />
     </aside>
   );
 }
 
-function SessionInfo() {
+function SessionInfo({ topic }: { topic: string }) {
   return (
     <div className="flex flex-col gap-4">
       <p
@@ -138,7 +144,7 @@ function SessionInfo() {
         className="text-[24px] leading-[1.25] text-black"
         style={{ fontFamily: "var(--font-public-sans)" }}
       >
-        {TOPIC}
+        {topic}
       </p>
     </div>
   );
@@ -213,7 +219,8 @@ function ContextChip({ name }: { name: string }) {
   );
 }
 
-function AiPanel() {
+function AiPanel({ topic }: { topic: string }) {
+  const onwardHref = `/self-reflection?topic=${encodeURIComponent(topic)}`;
   return (
     <div className="flex flex-col gap-6 rounded-2xl bg-[#1a1a1a] p-8">
       <div className="flex items-center justify-between">
@@ -224,7 +231,7 @@ function AiPanel() {
           4:24s remaining
         </p>
         <Link
-          href="/self-reflection"
+          href={onwardHref}
           className="text-[18px] leading-none text-white/60 transition-colors hover:text-white"
           style={{ fontFamily: "var(--font-public-sans)" }}
         >

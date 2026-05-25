@@ -4,7 +4,7 @@ export const metadata = {
   title: "Waiting room — Together",
 };
 
-const TOPIC =
+const DEFAULT_TOPIC =
   "Why is our enterprise expansion stalling, and what should we do about it in Q1?";
 
 const TIMELINE_STEPS = [
@@ -33,11 +33,17 @@ const PARTICIPANTS: Participant[] = [
   { initial: "S", name: "Sam (Invited)", bg: "#ffd9fd", invited: true },
 ];
 
-export default function WaitingRoomPage() {
+export default async function WaitingRoomPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string }>;
+}) {
+  const { topic } = await searchParams;
+  const sessionTopic = topic?.trim() || DEFAULT_TOPIC;
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <Body />
+      <Body topic={sessionTopic} />
     </div>
   );
 }
@@ -75,16 +81,17 @@ function Logo() {
   );
 }
 
-function Body() {
+function Body({ topic }: { topic: string }) {
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
-      <MainCard />
-      <Sidebar />
+      <MainCard topic={topic} />
+      <Sidebar topic={topic} />
     </div>
   );
 }
 
-function MainCard() {
+function MainCard({ topic }: { topic: string }) {
+  const onwardHref = `/session?topic=${encodeURIComponent(topic)}`;
   return (
     <section className="flex min-w-0 flex-1 items-center justify-center">
       <div className="flex w-full max-w-[640px] flex-col items-center gap-11">
@@ -107,7 +114,7 @@ function MainCard() {
 
         <div className="flex w-full flex-col gap-4 sm:flex-row sm:gap-6">
           <SecondaryButton>Invite team</SecondaryButton>
-          <SecondaryButton href="/session">Join the waiting room</SecondaryButton>
+          <SecondaryButton href={onwardHref}>Join the waiting room</SecondaryButton>
         </div>
 
         <HowItWorks />
@@ -199,7 +206,7 @@ function HowItWorks() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ topic }: { topic: string }) {
   return (
     <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
       <div className="flex flex-col gap-4">
@@ -213,7 +220,7 @@ function Sidebar() {
           className="text-[24px] leading-[1.25] text-black"
           style={{ fontFamily: "var(--font-public-sans)" }}
         >
-          {TOPIC}
+          {topic}
         </p>
       </div>
 

@@ -4,7 +4,7 @@ export const metadata = {
   title: "Self reflection — Together",
 };
 
-const TOPIC =
+const DEFAULT_TOPIC =
   "Why is our enterprise expansion stalling, and what should we do about it in Q1?";
 
 const TIMELINE_STEPS = [
@@ -32,11 +32,17 @@ const PARTICIPANTS: Participant[] = [
   { initial: "S", name: "Sam", bg: "#ffd9fd" },
 ];
 
-export default function SelfReflectionPage() {
+export default async function SelfReflectionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string }>;
+}) {
+  const { topic } = await searchParams;
+  const sessionTopic = topic?.trim() || DEFAULT_TOPIC;
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <Body />
+      <Body topic={sessionTopic} />
     </div>
   );
 }
@@ -105,16 +111,17 @@ function Logo() {
   );
 }
 
-function Body() {
+function Body({ topic }: { topic: string }) {
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
-      <MainCard />
-      <Sidebar />
+      <MainCard topic={topic} />
+      <Sidebar topic={topic} />
     </div>
   );
 }
 
-function MainCard() {
+function MainCard({ topic }: { topic: string }) {
+  const onwardHref = `/vote?topic=${encodeURIComponent(topic)}`;
   return (
     <section className="flex min-w-0 flex-1 flex-col justify-between gap-12 rounded-3xl bg-white p-8 md:p-12">
       <div className="flex flex-col gap-6">
@@ -128,7 +135,7 @@ function MainCard() {
           className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
           style={{ fontFamily: "var(--font-queens)" }}
         >
-          {TOPIC}
+          {topic}
         </h1>
 
         <ReflectionInput />
@@ -143,7 +150,7 @@ function MainCard() {
           Pass
         </button>
         <Link
-          href="/vote"
+          href={onwardHref}
           className="flex flex-1 items-center justify-center rounded-2xl bg-[#1a1a1a] p-4 text-[14px] font-medium leading-none text-white transition-colors hover:bg-black"
           style={{ fontFamily: "var(--font-public-sans)" }}
         >
@@ -186,10 +193,10 @@ function ReflectionInput() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ topic }: { topic: string }) {
   return (
     <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
-      <SessionInfo />
+      <SessionInfo topic={topic} />
       <Timeline />
       <InTheRoom />
       <SessionContext />
@@ -197,7 +204,7 @@ function Sidebar() {
   );
 }
 
-function SessionInfo() {
+function SessionInfo({ topic }: { topic: string }) {
   return (
     <div className="flex flex-col gap-4">
       <p
@@ -210,7 +217,7 @@ function SessionInfo() {
         className="text-[24px] leading-[1.25] text-black"
         style={{ fontFamily: "var(--font-public-sans)" }}
       >
-        {TOPIC}
+        {topic}
       </p>
     </div>
   );

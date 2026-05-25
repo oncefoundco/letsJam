@@ -4,7 +4,7 @@ export const metadata = {
   title: "Vote — Together",
 };
 
-const TOPIC =
+const DEFAULT_TOPIC =
   "Why is our enterprise expansion stalling, and what should we do about it in Q1?";
 
 const TIMELINE_STEPS = [
@@ -35,11 +35,17 @@ const PARTICIPANTS: Participant[] = [
 const PERSPECTIVE_BODY =
   "What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces.";
 
-export default function VotePage() {
+export default async function VotePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string }>;
+}) {
+  const { topic } = await searchParams;
+  const sessionTopic = topic?.trim() || DEFAULT_TOPIC;
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <Body />
+      <Body topic={sessionTopic} />
     </div>
   );
 }
@@ -108,16 +114,17 @@ function Logo() {
   );
 }
 
-function Body() {
+function Body({ topic }: { topic: string }) {
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
-      <MainCard />
-      <Sidebar />
+      <MainCard topic={topic} />
+      <Sidebar topic={topic} />
     </div>
   );
 }
 
-function MainCard() {
+function MainCard({ topic }: { topic: string }) {
+  const refineHref = `/refine?topic=${encodeURIComponent(topic)}`;
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-white p-8 md:p-12">
       <div className="flex flex-col gap-4">
@@ -150,7 +157,7 @@ function MainCard() {
           attribution={PERSPECTIVE_BODY}
           ctaLabel="Vote B"
         />
-        <RefineCard />
+        <RefineCard refineHref={refineHref} />
       </div>
     </section>
   );
@@ -211,7 +218,7 @@ function PerspectiveCard({
   );
 }
 
-function RefineCard() {
+function RefineCard({ refineHref }: { refineHref: string }) {
   return (
     <article className="flex h-full min-h-[420px] flex-col gap-6 rounded-2xl bg-[#f5f5f5] p-4">
       <h2
@@ -232,7 +239,7 @@ function RefineCard() {
         </p>
       </div>
       <Link
-        href="/refine"
+        href={refineHref}
         className="flex w-full items-center justify-center rounded-xl bg-[#1a1a1a] px-4 py-[9px] text-[14px] font-medium leading-none text-white transition-colors hover:bg-black"
         style={{ fontFamily: "var(--font-public-sans)" }}
       >
@@ -242,10 +249,10 @@ function RefineCard() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ topic }: { topic: string }) {
   return (
     <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
-      <SessionInfo />
+      <SessionInfo topic={topic} />
       <Timeline />
       <InTheRoom />
       <SessionContext />
@@ -253,7 +260,7 @@ function Sidebar() {
   );
 }
 
-function SessionInfo() {
+function SessionInfo({ topic }: { topic: string }) {
   return (
     <div className="flex flex-col gap-4">
       <p
@@ -266,7 +273,7 @@ function SessionInfo() {
         className="text-[24px] leading-[1.25] text-black"
         style={{ fontFamily: "var(--font-public-sans)" }}
       >
-        {TOPIC}
+        {topic}
       </p>
     </div>
   );
