@@ -38,14 +38,15 @@ const PERSPECTIVE_BODY =
 export default async function VotePage({
   searchParams,
 }: {
-  searchParams: Promise<{ topic?: string }>;
+  searchParams: Promise<{ topic?: string; file?: string | string[] }>;
 }) {
-  const { topic } = await searchParams;
+  const { topic, file } = await searchParams;
   const sessionTopic = topic?.trim() || DEFAULT_TOPIC;
+  const files = file ? (Array.isArray(file) ? file : [file]) : [];
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <Body topic={sessionTopic} />
+      <Body topic={sessionTopic} files={files} />
     </div>
   );
 }
@@ -114,17 +115,17 @@ function Logo() {
   );
 }
 
-function Body({ topic }: { topic: string }) {
+function Body({ topic, files }: { topic: string; files: string[] }) {
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
-      <MainCard topic={topic} />
-      <Sidebar topic={topic} />
+      <MainCard topic={topic} files={files} />
+      <Sidebar topic={topic} files={files} />
     </div>
   );
 }
 
-function MainCard({ topic }: { topic: string }) {
-  const refineHref = `/refine?topic=${encodeURIComponent(topic)}`;
+function MainCard({ topic, files }: { topic: string; files: string[] }) {
+  const refineHref = `/refine?${buildQuery(topic, files)}`;
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-white p-8 md:p-12">
       <div className="flex flex-col gap-4">
@@ -249,13 +250,13 @@ function RefineCard({ refineHref }: { refineHref: string }) {
   );
 }
 
-function Sidebar({ topic }: { topic: string }) {
+function Sidebar({ topic, files }: { topic: string; files: string[] }) {
   return (
     <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
       <SessionInfo topic={topic} />
       <Timeline />
       <InTheRoom />
-      <SessionContext />
+      <SessionContext files={files} />
     </aside>
   );
 }
@@ -369,7 +370,8 @@ function ParticipantAvatar({ initial, bg }: { initial: string; bg: string }) {
   );
 }
 
-function SessionContext() {
+function SessionContext({ files }: { files: string[] }) {
+  if (files.length === 0) return null;
   return (
     <div className="flex flex-col gap-4">
       <p
@@ -379,11 +381,19 @@ function SessionContext() {
         Session Context
       </p>
       <div className="flex flex-wrap gap-3">
-        <ContextChip name="2026-CRM-deals.csv" />
-        <ContextChip name="2026-CRM-deals.csv" />
+        {files.map((name, idx) => (
+          <ContextChip key={`${name}-${idx}`} name={name} />
+        ))}
       </div>
     </div>
   );
+}
+
+function buildQuery(topic: string, files: string[]) {
+  const params = new URLSearchParams();
+  params.set("topic", topic);
+  files.forEach((f) => params.append("file", f));
+  return params.toString();
 }
 
 function ContextChip({ name }: { name: string }) {

@@ -1,9 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
-export function UploadContext() {
-  const [files, setFiles] = useState<string[]>([]);
+export function UploadContext({
+  files,
+  onChange,
+}: {
+  files: string[];
+  onChange: (files: string[]) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handlePickClick() {
@@ -14,13 +19,13 @@ export function UploadContext() {
     if (!e.target.files) return;
     const picked = Array.from(e.target.files).map((f) => f.name);
     if (picked.length > 0) {
-      setFiles((prev) => [...prev, ...picked]);
+      onChange([...files, ...picked]);
     }
     e.target.value = "";
   }
 
   function handleRemove(idx: number) {
-    setFiles((prev) => prev.filter((_, i) => i !== idx));
+    onChange(files.filter((_, i) => i !== idx));
   }
 
   return (

@@ -9,8 +9,13 @@ const PLACEHOLDER =
 
 export function StartForm() {
   const [challenge, setChallenge] = useState("");
+  const [files, setFiles] = useState<string[]>([]);
   const topic = challenge.trim() || PLACEHOLDER;
-  const onwardHref = `/waiting-room?topic=${encodeURIComponent(topic)}`;
+
+  const params = new URLSearchParams();
+  params.set("topic", topic);
+  files.forEach((f) => params.append("file", f));
+  const onwardHref = `/waiting-room?${params.toString()}`;
 
   return (
     <>
@@ -33,7 +38,7 @@ export function StartForm() {
         </Field>
 
         <Field label="Upload context">
-          <UploadContext />
+          <UploadContext files={files} onChange={setFiles} />
         </Field>
 
         <Field label="Start time">

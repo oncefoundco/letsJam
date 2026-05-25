@@ -35,14 +35,15 @@ const VIDEO_TILES: { initial: string; bg: string; active?: boolean }[] = [
 export default async function SessionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ topic?: string }>;
+  searchParams: Promise<{ topic?: string; file?: string | string[] }>;
 }) {
-  const { topic } = await searchParams;
+  const { topic, file } = await searchParams;
   const sessionTopic = topic?.trim() || DEFAULT_TOPIC;
+  const files = file ? (Array.isArray(file) ? file : [file]) : [];
   return (
     <div className="flex min-h-screen items-start gap-6 bg-background p-6 md:gap-8 md:p-8">
       <MainColumn />
-      <Sidebar topic={sessionTopic} />
+      <Sidebar topic={sessionTopic} files={files} />
     </div>
   );
 }
@@ -118,15 +119,15 @@ function VideoTile({
   );
 }
 
-function Sidebar({ topic }: { topic: string }) {
+function Sidebar({ topic, files }: { topic: string; files: string[] }) {
   return (
     <aside className="flex h-[calc(100vh-4rem)] w-full flex-col justify-between rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
       <div className="flex flex-col gap-16">
         <SessionInfo topic={topic} />
         <InWaitingRoom />
-        <SessionContext />
+        <SessionContext files={files} />
       </div>
-      <AiPanel topic={topic} />
+      <AiPanel topic={topic} files={files} />
     </aside>
   );
 }
@@ -190,7 +191,8 @@ function ParticipantAvatar({ initial, bg }: { initial: string; bg: string }) {
   );
 }
 
-function SessionContext() {
+function SessionContext({ files }: { files: string[] }) {
+  if (files.length === 0) return null;
   return (
     <div className="flex flex-col gap-4">
       <p
@@ -200,11 +202,19 @@ function SessionContext() {
         Session Context
       </p>
       <div className="flex flex-wrap gap-3">
-        <ContextChip name="2026-CRM-deals.csv" />
-        <ContextChip name="2026-CRM-deals.csv" />
+        {files.map((name, idx) => (
+          <ContextChip key={`${name}-${idx}`} name={name} />
+        ))}
       </div>
     </div>
   );
+}
+
+function buildQuery(topic: string, files: string[]) {
+  const params = new URLSearchParams();
+  params.set("topic", topic);
+  files.forEach((f) => params.append("file", f));
+  return params.toString();
 }
 
 function ContextChip({ name }: { name: string }) {
@@ -219,8 +229,8 @@ function ContextChip({ name }: { name: string }) {
   );
 }
 
-function AiPanel({ topic }: { topic: string }) {
-  const onwardHref = `/self-reflection?topic=${encodeURIComponent(topic)}`;
+function AiPanel({ topic, files }: { topic: string; files: string[] }) {
+  const onwardHref = `/self-reflection?${buildQuery(topic, files)}`;
   return (
     <div className="flex flex-col gap-6 rounded-2xl bg-[#1a1a1a] p-8">
       <div className="flex items-center justify-between">
