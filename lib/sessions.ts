@@ -26,6 +26,13 @@ export type Reflection = {
   submittedAt: number;
 };
 
+export type Perspective = {
+  label: string;
+  title: string;
+  body: string;
+  attribution: string;
+};
+
 export type StoredSession = {
   id: string;
   topic: string;
@@ -37,6 +44,7 @@ export type StoredSession = {
   participants: Participant[];
   summary?: SessionSummary;
   reflections: Reflection[];
+  perspectives?: Perspective[];
 };
 
 const AVATAR_COLORS = [
@@ -117,6 +125,17 @@ export async function setSummary(
   const session = await getSession(sessionId);
   if (!session) return false;
   session.summary = summary;
+  await saveSession(session);
+  return true;
+}
+
+export async function setPerspectives(
+  sessionId: string,
+  perspectives: Perspective[]
+): Promise<boolean> {
+  const session = await getSession(sessionId);
+  if (!session) return false;
+  session.perspectives = perspectives;
   await saveSession(session);
   return true;
 }

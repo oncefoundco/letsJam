@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getSession, type Participant } from "@/lib/sessions";
+import {
+  getSession,
+  type Participant,
+  type Perspective,
+} from "@/lib/sessions";
 import { ParticipantList } from "@/app/_components/ParticipantList";
+import { SynthesizePanel } from "./SynthesizePanel";
 
 export const metadata = {
   title: "Vote — Jam",
@@ -17,10 +22,6 @@ const TIMELINE_STEPS = [
 ];
 
 const ACTIVE_STEP = 4;
-
-
-const PERSPECTIVE_BODY =
-  "What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces.";
 
 export default async function VotePage({
   searchParams,
@@ -39,6 +40,7 @@ export default async function VotePage({
         topic={session.topic}
         files={session.files}
         participants={session.participants}
+        perspectives={session.perspectives}
       />
     </div>
   );
@@ -115,15 +117,17 @@ function Body({
   topic,
   files,
   participants,
+  perspectives,
 }: {
   sessionId: string;
   topic: string;
   files: string[];
   participants: Participant[];
+  perspectives?: Perspective[];
 }) {
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
-      <MainCard sessionId={sessionId} />
+      <MainCard sessionId={sessionId} perspectives={perspectives} />
       <Sidebar
         sessionId={sessionId}
         topic={topic}
@@ -134,8 +138,15 @@ function Body({
   );
 }
 
-function MainCard({ sessionId }: { sessionId: string }) {
+function MainCard({
+  sessionId,
+  perspectives,
+}: {
+  sessionId: string;
+  perspectives?: Perspective[];
+}) {
   const refineHref = `/refine?session=${sessionId}`;
+  const ready = perspectives && perspectives.length >= 2;
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-white p-8 md:p-12">
       <div className="flex flex-col gap-4">
@@ -153,23 +164,23 @@ function MainCard({ sessionId }: { sessionId: string }) {
         </h1>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-3">
-        <PerspectiveCard
-          label="Perspective A"
-          title="Reposition first, the platform story is the gate"
-          body={PERSPECTIVE_BODY}
-          attribution={PERSPECTIVE_BODY}
-          ctaLabel="Vote A"
-        />
-        <PerspectiveCard
-          label="Perspective B"
-          title="Reposition first, the platform story is the gate"
-          body={PERSPECTIVE_BODY}
-          attribution={PERSPECTIVE_BODY}
-          ctaLabel="Vote B"
-        />
-        <RefineCard refineHref={refineHref} />
-      </div>
+      {ready ? (
+        <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-3">
+          {perspectives!.slice(0, 2).map((p, i) => (
+            <PerspectiveCard
+              key={p.label}
+              label={p.label}
+              title={p.title}
+              body={p.body}
+              attribution={p.attribution}
+              ctaLabel={`Vote ${String.fromCharCode(65 + i)}`}
+            />
+          ))}
+          <RefineCard refineHref={refineHref} />
+        </div>
+      ) : (
+        <SynthesizePanel sessionId={sessionId} />
+      )}
     </section>
   );
 }
