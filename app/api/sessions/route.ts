@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   addParticipant,
   createWherebyRoom,
+  linkRoomToSession,
   saveSession,
 } from "@/lib/sessions";
 
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     : [];
 
   try {
-    const { roomUrl, hostRoomUrl } = await createWherebyRoom();
+    const { roomUrl, hostRoomUrl, roomName } = await createWherebyRoom();
     const id = crypto.randomUUID();
     await saveSession({
       id,
@@ -36,9 +37,12 @@ export async function POST(req: Request) {
       files,
       roomUrl,
       hostRoomUrl,
+      roomName,
       createdAt: Date.now(),
       participants: [],
     });
+    // Reverse index so the transcription webhook (which only knows roomName) finds us.
+    await linkRoomToSession(roomName, id);
     // Auto-register the host as a participant so we skip the name prompt for them.
     // TODO: when Google OAuth lands, replace HOST_NAME with the authed user's name.
     const host = await addParticipant(id, HOST_NAME);

@@ -12,14 +12,22 @@ export type Participant = {
   joinedAt: number;
 };
 
+export type SessionSummary = {
+  decisions: string[];
+  openQuestions: string[];
+  differences: string[];
+};
+
 export type StoredSession = {
   id: string;
   topic: string;
   files: string[];
   roomUrl: string;
   hostRoomUrl: string;
+  roomName: string;
   createdAt: number;
   participants: Participant[];
+  summary?: SessionSummary;
 };
 
 const AVATAR_COLORS = [
@@ -37,6 +45,28 @@ const AVATAR_COLORS = [
 
 function sessionKey(id: string) {
   return `session:${id}`;
+}
+
+function normalizeRoomName(roomName: string) {
+  return roomName.replace(/^\/+|\/+$/g, "");
+}
+
+function roomKey(roomName: string) {
+  return `room:${normalizeRoomName(roomName)}`;
+}
+
+// Reverse index so the Whereby webhook (which only knows roomName) can find our session.
+export async function linkRoomToSession(
+  roomName: string,
+  sessionId: string
+): Promise<void> {
+  await kv.set(roomKey(roomName), sessionId, { ex: SESSION_TTL_SECONDS });
+}
+
+export async function getSessionIdByRoomName(
+  roomName: string
+): Promise<string | null> {
+  return (await kv.get<string>(roomKey(roomName))) ?? null;
 }
 
 export async function saveSession(session: StoredSession): Promise<void> {
@@ -71,9 +101,21 @@ export async function addParticipant(
   return participant;
 }
 
+export async function setSummary(
+  sessionId: string,
+  summary: SessionSummary
+): Promise<boolean> {
+  const session = await getSession(sessionId);
+  if (!session) return false;
+  session.summary = summary;
+  await saveSession(session);
+  return true;
+}
+
 export async function createWherebyRoom(): Promise<{
   roomUrl: string;
   hostRoomUrl: string;
+  roomName: string;
 }> {
   const apiKey = process.env.WHEREBY_API_KEY;
   if (!apiKey) {
@@ -103,6 +145,9 @@ export async function createWherebyRoom(): Promise<{
   const json = (await res.json()) as {
     roomUrl: string;
     hostRoomUrl: string;
+    roomName?: string;
   };
-  return { roomUrl: json.roomUrl, hostRoomUrl: json.hostRoomUrl };
+  const roomName =
+    json.roomName ?? new URL(json.roomUrl).pathname.replace(/^\/+/, "");
+  return { roomUrl: json.roomUrl, hostRoomUrl: json.hostRoomUrl, roomName };
 }
