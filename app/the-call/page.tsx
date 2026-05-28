@@ -1,22 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getSession, type Participant, type Outcome } from "@/lib/sessions";
-import { ParticipantList } from "@/app/_components/ParticipantList";
+import { getSession, type Outcome } from "@/lib/sessions";
+import { Confetti } from "./Confetti";
 
 export const metadata = {
   title: "The call — Jam",
 };
-
-const TIMELINE_STEPS = [
-  "Setup",
-  "Waiting Room",
-  "Self Reflection",
-  "Synthesize",
-  "Vote",
-  "The call",
-];
-
-const ACTIVE_STEP = 5;
 
 export default async function TheCallPage({
   searchParams,
@@ -30,13 +19,7 @@ export default async function TheCallPage({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <Body
-        sessionId={session.id}
-        topic={session.topic}
-        files={session.files}
-        participants={session.participants}
-        outcome={session.outcome}
-      />
+      <Body sessionId={session.id} outcome={session.outcome} />
     </div>
   );
 }
@@ -78,21 +61,14 @@ function Logo() {
 
 function Body({
   sessionId,
-  topic,
-  files,
-  participants,
   outcome,
 }: {
   sessionId: string;
-  topic: string;
-  files: string[];
-  participants: Participant[];
   outcome?: Outcome;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
+    <div className="flex flex-1 flex-col items-stretch px-6 pb-12 pt-4 md:px-12 lg:px-16 lg:pb-16 lg:pt-8">
       <MainCard sessionId={sessionId} outcome={outcome} />
-      <Sidebar sessionId={sessionId} topic={topic} files={files} participants={participants} />
     </div>
   );
 }
@@ -105,8 +81,9 @@ function MainCard({
   outcome?: Outcome;
 }) {
   return (
-    <section className="flex min-w-0 flex-1 flex-col gap-8 rounded-3xl bg-white p-6 md:p-8 lg:p-12">
-      <div className="flex flex-col gap-4">
+    <section className="relative mx-auto flex w-full max-w-3xl min-w-0 flex-1 flex-col gap-8 overflow-hidden rounded-3xl bg-white p-6 md:p-8 lg:p-12">
+      {outcome ? <Confetti /> : null}
+      <div className="relative z-20 flex flex-col gap-4">
         <p
           className="text-[14px] font-medium leading-none text-[#e96748]"
           style={{ fontFamily: "var(--font-public-sans)" }}
@@ -122,10 +99,12 @@ function MainCard({
       </div>
 
       {outcome ? (
-        <Decision outcome={outcome} />
+        <div className="relative z-20">
+          <Decision outcome={outcome} />
+        </div>
       ) : (
         <div
-          className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-[#f5f5f5] p-12 text-center"
+          className="relative z-20 flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-[#f5f5f5] p-12 text-center"
           style={{ fontFamily: "var(--font-public-sans)" }}
         >
           <p className="text-[15px] text-[#1a1a1a]">
@@ -176,144 +155,3 @@ function Decision({ outcome }: { outcome: Outcome }) {
   );
 }
 
-function Sidebar({
-  sessionId,
-  topic,
-  files,
-  participants,
-}: {
-  sessionId: string;
-  topic: string;
-  files: string[];
-  participants: Participant[];
-}) {
-  return (
-    <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
-      <SessionInfo topic={topic} />
-      <Timeline />
-      <ParticipantList
-        participants={participants}
-        sessionId={sessionId}
-        label="In the room"
-      />
-      <SessionContext files={files} />
-    </aside>
-  );
-}
-
-function SessionInfo({ topic }: { topic: string }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Session
-      </p>
-      <p
-        className="text-[24px] leading-[1.25] text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        {topic}
-      </p>
-    </div>
-  );
-}
-
-function Timeline() {
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Timeline
-      </p>
-      <ol className="flex flex-col">
-        {TIMELINE_STEPS.map((label, idx) => {
-          const active = idx === ACTIVE_STEP;
-          return (
-            <li
-              key={label}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                active ? "bg-[#f5f5f5]" : ""
-              }`}
-            >
-              <StepIndicator number={idx + 1} active={active} />
-              <span
-                className="text-[14px] leading-none text-[#1a1a1a]"
-                style={{ fontFamily: "var(--font-public-sans)" }}
-              >
-                {label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-function StepIndicator({
-  number,
-  active,
-}: {
-  number: number;
-  active?: boolean;
-}) {
-  return (
-    <span
-      className={`grid h-6 w-6 place-items-center rounded-full text-[10px] leading-none ${
-        active ? "bg-[#e85d3c] text-white" : "bg-[#f5f5f5] text-black"
-      }`}
-      style={{ fontFamily: "var(--font-public-sans)" }}
-    >
-      {number}
-    </span>
-  );
-}
-
-function SessionContext({ files }: { files: string[] }) {
-  if (files.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Session Context
-      </p>
-      <div className="flex flex-wrap gap-3">
-        {files.map((name, idx) => (
-          <ContextChip key={`${name}-${idx}`} name={name} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ContextChip({ name }: { name: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-3 rounded-full bg-black/5 p-3 text-[14px] leading-none text-black"
-      style={{ fontFamily: "var(--font-public-sans)" }}
-    >
-      <DocIcon />
-      {name}
-    </span>
-  );
-}
-
-function DocIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
