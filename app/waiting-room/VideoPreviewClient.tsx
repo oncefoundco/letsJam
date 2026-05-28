@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-// Whereby SDK touches window at import time; load only after hydration.
+// navigator.mediaDevices is browser-only; load this component only after hydration.
 export const VideoPreview = dynamic(
   () => import("./VideoPreview").then((m) => m.VideoPreview),
   {

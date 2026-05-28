@@ -1,94 +1,101 @@
 "use client";
 
-import {
-  WherebyProvider,
-  useLocalMedia,
-  VideoView,
-} from "@whereby.com/browser-sdk/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+// Camera + mic preview. Acquisition is fully opt-in: no getUserMedia call
+// happens until the user explicitly enables a device, and every track we
+// acquire is owned by this component so we can stop it on unmount.
 
 export function VideoPreview() {
-  return (
-    <WherebyProvider>
-      <PreviewInner />
-    </WherebyProvider>
-  );
-}
+  const [cameraOn, setCameraOn] = useState(false);
+  const [micOn, setMicOn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-function PreviewInner() {
-  const [cameraOn, setCameraOn] = useState(true);
-  const [micOn, setMicOn] = useState(true);
-  const { state, actions } = useLocalMedia({ audio: true, video: true });
+  const videoStreamRef = useRef<MediaStream | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
 
-  const stream = state.localStream;
-  const denied = state.startError != null;
-
-  // Keep refs to the latest stream + actions so the unmount cleanup
-  // (which runs with empty deps) always sees current values.
-  const streamRef = useRef<MediaStream | undefined>(stream);
-  streamRef.current = stream;
-  const actionsRef = useRef(actions);
-  actionsRef.current = actions;
-
-  // Hard release of camera + mic when this component leaves the tree.
-  // The SDK's useLocalMedia only auto-releases when its internal status is
-  // "started"; navigating mid-acquisition or with the SDK's preview held
-  // open can leave the macOS green dot on. We stop AND removeTrack every
-  // track from the latest stream, and tell the SDK to disable the devices,
-  // belt-and-braces.
-  useEffect(() => {
-    return () => {
-      const s = streamRef.current;
-      if (s) {
-        for (const t of s.getTracks()) {
-          t.stop();
-          s.removeTrack(t);
-        }
+  const stopVideo = useCallback(() => {
+    const s = videoStreamRef.current;
+    if (s) {
+      for (const t of s.getTracks()) {
+        t.stop();
+        s.removeTrack(t);
       }
-      try {
-        actionsRef.current.toggleCameraEnabled(false);
-      } catch {
-        // SDK may already be torn down
-      }
-      try {
-        actionsRef.current.toggleMicrophoneEnabled(false);
-      } catch {
-        // ditto
-      }
-    };
+      videoStreamRef.current = null;
+    }
+    if (videoElRef.current) {
+      videoElRef.current.srcObject = null;
+    }
   }, []);
 
-  function toggleCamera() {
-    const next = !cameraOn;
-    setCameraOn(next);
-    actions.toggleCameraEnabled(next);
-    if (!next && stream) {
-      // Force-release the camera hardware so the macOS green dot turns off.
-      // SDK does this internally but only when status === "started"; guarantee it here.
-      stream.getVideoTracks().forEach((t) => {
+  const stopAudio = useCallback(() => {
+    const s = audioStreamRef.current;
+    if (s) {
+      for (const t of s.getTracks()) {
         t.stop();
-        stream.removeTrack(t);
-      });
+        s.removeTrack(t);
+      }
+      audioStreamRef.current = null;
     }
-  }
+  }, []);
 
-  function toggleMic() {
-    const next = !micOn;
-    setMicOn(next);
-    actions.toggleMicrophoneEnabled(next);
-    if (!next && stream) {
-      stream.getAudioTracks().forEach((t) => {
-        t.stop();
-        stream.removeTrack(t);
-      });
+  const toggleCamera = useCallback(async () => {
+    if (cameraOn) {
+      stopVideo();
+      setCameraOn(false);
+      return;
     }
-  }
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoStreamRef.current = stream;
+      if (videoElRef.current) {
+        videoElRef.current.srcObject = stream;
+      }
+      setCameraOn(true);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.name === "NotAllowedError"
+          ? "Camera access blocked — allow it in browser settings to preview."
+          : "Couldn't access camera."
+      );
+    }
+  }, [cameraOn, stopVideo]);
+
+  const toggleMic = useCallback(async () => {
+    if (micOn) {
+      stopAudio();
+      setMicOn(false);
+      return;
+    }
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      setMicOn(true);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.name === "NotAllowedError"
+          ? "Microphone access blocked — allow it in browser settings."
+          : "Couldn't access microphone."
+      );
+    }
+  }, [micOn, stopAudio]);
+
+  // Hard release of every track we own when the component leaves the tree.
+  useEffect(() => {
+    return () => {
+      stopVideo();
+      stopAudio();
+    };
+  }, [stopVideo, stopAudio]);
 
   return (
     <div className="relative w-full max-w-[366px]">
       <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-row gap-3 sm:bottom-auto sm:left-[-4rem] sm:top-1/2 sm:translate-x-0 sm:-translate-y-1/2 sm:flex-col">
         <IconButton
-          ariaLabel={micOn ? "Mute microphone" : "Unmute microphone"}
+          ariaLabel={micOn ? "Turn off microphone" : "Turn on microphone"}
           pressed={micOn}
           onClick={toggleMic}
         >
@@ -103,26 +110,36 @@ function PreviewInner() {
         </IconButton>
       </div>
       <div className="relative aspect-[547/443] w-full overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-700 to-neutral-900">
-        {stream && cameraOn ? (
-          <VideoView
-            stream={stream}
-            muted
-            mirror
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
+        <video
+          ref={videoElRef}
+          autoPlay
+          playsInline
+          muted
+          className={`absolute inset-0 h-full w-full -scale-x-100 object-cover ${
+            cameraOn ? "" : "hidden"
+          }`}
+        />
+        {!cameraOn ? (
           <div className="absolute inset-0 grid place-items-center">
-            <div className="grid h-20 w-20 place-items-center rounded-full bg-white/10 text-white/70">
-              <VideoIcon muted={!cameraOn} />
+            <div className="flex flex-col items-center gap-3 text-white/70">
+              <div className="grid h-20 w-20 place-items-center rounded-full bg-white/10">
+                <VideoIcon muted />
+              </div>
+              <p
+                className="text-[13px]"
+                style={{ fontFamily: "var(--font-public-sans)" }}
+              >
+                Tap the camera icon to preview
+              </p>
             </div>
           </div>
-        )}
-        {denied ? (
+        ) : null}
+        {error ? (
           <div
             className="absolute inset-x-0 bottom-0 bg-black/60 px-4 py-2 text-center text-[12px] text-white"
             style={{ fontFamily: "var(--font-public-sans)" }}
           >
-            Camera/mic access blocked — allow in browser settings to preview.
+            {error}
           </div>
         ) : null}
       </div>

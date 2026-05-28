@@ -30,8 +30,11 @@ function RoomInner({
   leaveHref: string;
 }) {
   const router = useRouter();
+  // Join with both media OFF so the SDK doesn't acquire camera/mic until
+  // the user explicitly enables them via the toggle buttons. The macOS
+  // green dot only turns on after a deliberate click.
   const { state, actions } = useRoomConnection(roomUrl, {
-    localMediaOptions: { audio: true, video: true },
+    localMediaOptions: { audio: false, video: false },
   });
   const { joinRoom, leaveRoom, toggleCamera, toggleMicrophone } = actions;
 
