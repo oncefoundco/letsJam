@@ -6,7 +6,7 @@ import {
   VideoGrid,
 } from "@whereby.com/browser-sdk/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function WherebyRoom({
   roomUrl,
@@ -35,9 +35,31 @@ function RoomInner({
   });
   const { joinRoom, leaveRoom, toggleCamera, toggleMicrophone } = actions;
 
+  // Latest state in a ref so the unmount cleanup can release the
+  // local stream even if state changed between mount and unmount.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Hard-stop any local tracks the SDK is still holding. leaveRoom()
+  // disconnects the room but does NOT reliably release getUserMedia
+  // tracks acquired via localMediaOptions — the macOS green dot stays
+  // on otherwise.
+  function releaseLocalMedia() {
+    const s = stateRef.current.localParticipant?.stream;
+    if (s) {
+      for (const t of s.getTracks()) {
+        t.stop();
+        s.removeTrack(t);
+      }
+    }
+  }
+
   useEffect(() => {
     joinRoom();
-    return () => leaveRoom();
+    return () => {
+      leaveRoom();
+      releaseLocalMedia();
+    };
     // SDK requires once-on-mount; actions are recreated each render.
     // Note: in dev (Strict Mode) you may see a "Did not find client for update"
     // warning from the SDK due to the double mount/unmount cycle. Harmless.
@@ -46,6 +68,7 @@ function RoomInner({
 
   function handleEnd() {
     leaveRoom();
+    releaseLocalMedia();
     router.push(leaveHref);
   }
 

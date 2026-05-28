@@ -5,7 +5,7 @@ import {
   useLocalMedia,
   VideoView,
 } from "@whereby.com/browser-sdk/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function VideoPreview() {
   return (
@@ -23,12 +23,40 @@ function PreviewInner() {
   const stream = state.localStream;
   const denied = state.startError != null;
 
+  // Keep refs to the latest stream + actions so the unmount cleanup
+  // (which runs with empty deps) always sees current values.
+  const streamRef = useRef<MediaStream | undefined>(stream);
+  streamRef.current = stream;
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+
+  // Hard release of camera + mic when this component leaves the tree.
+  // The SDK's useLocalMedia only auto-releases when its internal status is
+  // "started"; navigating mid-acquisition or with the SDK's preview held
+  // open can leave the macOS green dot on. We stop AND removeTrack every
+  // track from the latest stream, and tell the SDK to disable the devices,
+  // belt-and-braces.
   useEffect(() => {
     return () => {
-      // Release camera + mic when leaving the page.
-      stream?.getTracks().forEach((t) => t.stop());
+      const s = streamRef.current;
+      if (s) {
+        for (const t of s.getTracks()) {
+          t.stop();
+          s.removeTrack(t);
+        }
+      }
+      try {
+        actionsRef.current.toggleCameraEnabled(false);
+      } catch {
+        // SDK may already be torn down
+      }
+      try {
+        actionsRef.current.toggleMicrophoneEnabled(false);
+      } catch {
+        // ditto
+      }
     };
-  }, [stream]);
+  }, []);
 
   function toggleCamera() {
     const next = !cameraOn;
