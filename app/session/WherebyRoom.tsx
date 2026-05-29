@@ -78,18 +78,22 @@ function RoomInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Carry over the user's camera/mic state from the waiting room. The SDK's
-  // toggle reducers are no-ops until connectionStatus reaches "connected",
-  // so we wait for that transition and apply once.
+  // Carry over the user's camera/mic state from the waiting room. The
+  // waiting-room preview starts both devices off and only writes to
+  // sessionStorage when the user toggles, so "no entry" means the user
+  // never opted in — match the waiting-room default and start the session
+  // muted. The toggles in-call still work because we already acquired
+  // media on join. The SDK's toggle reducers are no-ops until
+  // connectionStatus reaches "connected", so we wait for that.
   const prefsAppliedRef = useRef(false);
   useEffect(() => {
     if (prefsAppliedRef.current) return;
     if (state.connectionStatus !== "connected") return;
     prefsAppliedRef.current = true;
-    if (sessionStorage.getItem("jam:camera") === "off") {
+    if (sessionStorage.getItem("jam:camera") !== "on") {
       toggleCamera(false);
     }
-    if (sessionStorage.getItem("jam:mic") === "off") {
+    if (sessionStorage.getItem("jam:mic") !== "on") {
       toggleMicrophone(false);
     }
   }, [state.connectionStatus, toggleCamera, toggleMicrophone]);
