@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import type { Participant } from "@/lib/sessions";
 
+const POLL_MS = 3000;
+
 export function ParticipantList({
   participants,
   sessionId,
@@ -13,6 +15,9 @@ export function ParticipantList({
   label: string;
 }) {
   const [meId, setMeId] = useState<string | null>(null);
+  // Seed from the server-rendered list to avoid a flash, then keep it live so
+  // people already on the page see new joiners without a manual reload.
+  const [list, setList] = useState<Participant[]>(participants);
 
   useEffect(() => {
     try {
@@ -26,6 +31,34 @@ export function ParticipantList({
     }
   }, [sessionId]);
 
+  useEffect(() => {
+    let active = true;
+    async function refresh() {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/participants`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { participants?: Participant[] };
+        if (active && Array.isArray(data.participants)) {
+          setList(data.participants);
+        }
+      } catch {
+        // transient network error — try again next tick
+      }
+    }
+    // Refresh immediately when this tab's own join completes, and on an interval
+    // for joins happening in other people's tabs.
+    window.addEventListener("jam:participant-changed", refresh);
+    const handle = setInterval(refresh, POLL_MS);
+    refresh();
+    return () => {
+      active = false;
+      window.removeEventListener("jam:participant-changed", refresh);
+      clearInterval(handle);
+    };
+  }, [sessionId]);
+
   return (
     <div className="flex flex-col gap-4">
       <p
@@ -34,7 +67,7 @@ export function ParticipantList({
       >
         {label}
       </p>
-      {participants.length === 0 ? (
+      {list.length === 0 ? (
         <p
           className="text-[12px] leading-snug text-black/55"
           style={{ fontFamily: "var(--font-public-sans)" }}
@@ -43,7 +76,7 @@ export function ParticipantList({
         </p>
       ) : (
         <ul className="flex flex-col gap-4 px-3">
-          {participants.map((p) => (
+          {list.map((p) => (
             <li key={p.id} className="flex items-center gap-4">
               <span
                 className="grid h-6 w-6 place-items-center rounded-full text-[10px] leading-none text-black"

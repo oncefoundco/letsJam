@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 import { addParticipant, getSession } from "@/lib/sessions";
 
+// Lets the waiting room / session sidebar poll for new joiners so the
+// participant list updates live instead of only on a full page reload.
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const session = await getSession(id);
+  if (!session) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+  return NextResponse.json({ participants: session.participants });
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
