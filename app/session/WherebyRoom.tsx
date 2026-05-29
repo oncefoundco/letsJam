@@ -30,11 +30,13 @@ function RoomInner({
   leaveHref: string;
 }) {
   const router = useRouter();
-  // Join with both media OFF so the SDK doesn't acquire camera/mic until
-  // the user explicitly enables them via the toggle buttons. The macOS
-  // green dot only turns on after a deliberate click.
+  // SDK's toggleCamera/toggleMicrophone only flip enabled state on
+  // already-acquired tracks; they do NOT call getUserMedia. Joining with
+  // { audio: false, video: false } left the toggles dead. Acquire on mount
+  // (the user reaches /session deliberately via the waiting room) and rely
+  // on releaseLocalMedia() below to clear the macOS green dot on leave.
   const { state, actions } = useRoomConnection(roomUrl, {
-    localMediaOptions: { audio: false, video: false },
+    localMediaOptions: { audio: true, video: true },
   });
   const { joinRoom, leaveRoom, toggleCamera, toggleMicrophone } = actions;
 
@@ -68,6 +70,22 @@ function RoomInner({
     // warning from the SDK due to the double mount/unmount cycle. Harmless.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Carry over the user's camera/mic state from the waiting room. The SDK's
+  // toggle reducers are no-ops until connectionStatus reaches "connected",
+  // so we wait for that transition and apply once.
+  const prefsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (prefsAppliedRef.current) return;
+    if (state.connectionStatus !== "connected") return;
+    prefsAppliedRef.current = true;
+    if (sessionStorage.getItem("jam:camera") === "off") {
+      toggleCamera(false);
+    }
+    if (sessionStorage.getItem("jam:mic") === "off") {
+      toggleMicrophone(false);
+    }
+  }, [state.connectionStatus, toggleCamera, toggleMicrophone]);
 
   function handleEnd() {
     leaveRoom();

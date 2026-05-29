@@ -44,6 +44,7 @@ export function VideoPreview() {
     if (cameraOn) {
       stopVideo();
       setCameraOn(false);
+      sessionStorage.setItem("jam:camera", "off");
       return;
     }
     setError(null);
@@ -54,6 +55,7 @@ export function VideoPreview() {
         videoElRef.current.srcObject = stream;
       }
       setCameraOn(true);
+      sessionStorage.setItem("jam:camera", "on");
     } catch (err) {
       setError(
         err instanceof Error && err.name === "NotAllowedError"
@@ -67,6 +69,7 @@ export function VideoPreview() {
     if (micOn) {
       stopAudio();
       setMicOn(false);
+      sessionStorage.setItem("jam:mic", "off");
       return;
     }
     setError(null);
@@ -74,6 +77,7 @@ export function VideoPreview() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
       setMicOn(true);
+      sessionStorage.setItem("jam:mic", "on");
     } catch (err) {
       setError(
         err instanceof Error && err.name === "NotAllowedError"
