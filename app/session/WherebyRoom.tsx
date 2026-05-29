@@ -38,7 +38,14 @@ function RoomInner({
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: { audio: true, video: true },
   });
-  const { joinRoom, leaveRoom, toggleCamera, toggleMicrophone } = actions;
+  const {
+    joinRoom,
+    leaveRoom,
+    toggleCamera,
+    toggleMicrophone,
+    startScreenshare,
+    stopScreenshare,
+  } = actions;
 
   // Latest state in a ref so the unmount cleanup can release the
   // local stream even if state changed between mount and unmount.
@@ -95,6 +102,9 @@ function RoomInner({
 
   const cameraOn = state.isCameraEnabled;
   const micOn = state.isMicrophoneEnabled;
+  const screenshareStatus = state.localScreenshareStatus;
+  const sharingScreen = screenshareStatus === "active";
+  const screenshareBusy = screenshareStatus === "starting";
 
   return (
     <RoomShell>
@@ -105,8 +115,14 @@ function RoomInner({
       <ControlBar
         cameraOn={cameraOn}
         micOn={micOn}
+        sharingScreen={sharingScreen}
+        screenshareBusy={screenshareBusy}
         onToggleCamera={() => toggleCamera(!cameraOn)}
         onToggleMic={() => toggleMicrophone(!micOn)}
+        onToggleScreenshare={() => {
+          if (sharingScreen) stopScreenshare();
+          else if (!screenshareBusy) startScreenshare();
+        }}
         onEnd={handleEnd}
       />
     </RoomShell>
@@ -116,14 +132,20 @@ function RoomInner({
 function ControlBar({
   cameraOn,
   micOn,
+  sharingScreen,
+  screenshareBusy,
   onToggleCamera,
   onToggleMic,
+  onToggleScreenshare,
   onEnd,
 }: {
   cameraOn: boolean;
   micOn: boolean;
+  sharingScreen: boolean;
+  screenshareBusy: boolean;
   onToggleCamera: () => void;
   onToggleMic: () => void;
+  onToggleScreenshare: () => void;
   onEnd: () => void;
 }) {
   return (
@@ -142,6 +164,14 @@ function ControlBar({
       >
         <VideoIcon muted={!cameraOn} />
       </ControlButton>
+      <ControlButton
+        ariaLabel={sharingScreen ? "Stop sharing screen" : "Share screen"}
+        pressed={sharingScreen}
+        onClick={onToggleScreenshare}
+        disabled={screenshareBusy}
+      >
+        <ScreenshareIcon active={sharingScreen} />
+      </ControlButton>
       <button
         type="button"
         aria-label="End session"
@@ -159,11 +189,13 @@ function ControlButton({
   ariaLabel,
   onClick,
   pressed,
+  disabled,
 }: {
   children: React.ReactNode;
   ariaLabel: string;
   onClick: () => void;
   pressed: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -171,7 +203,8 @@ function ControlButton({
       aria-label={ariaLabel}
       aria-pressed={pressed}
       onClick={onClick}
-      className={`grid h-[52px] w-[52px] place-items-center rounded-full shadow-md transition-colors ${
+      disabled={disabled}
+      className={`grid h-[52px] w-[52px] place-items-center rounded-full shadow-md transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
         pressed
           ? "bg-white text-black hover:bg-neutral-100"
           : "bg-[#e85d3c] text-white hover:bg-[#d44d2e]"
@@ -270,6 +303,35 @@ function VideoIcon({ muted }: { muted?: boolean }) {
           strokeLinecap="round"
         />
       ) : null}
+    </svg>
+  );
+}
+
+function ScreenshareIcon({ active }: { active?: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="13"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M8 21h8"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d={active ? "M12 14V8m0 0l-3 3m3-3l3 3" : "M12 8v6m0-6l-3 3m3-3l3 3"}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
