@@ -17,9 +17,10 @@ export default async function TheCallPage({
   const session = await getSession(sessionId);
   if (!session) notFound();
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative flex min-h-screen flex-col bg-background">
       <Header />
       <Body sessionId={session.id} outcome={session.outcome} />
+      {session.outcome ? <Confetti /> : null}
     </div>
   );
 }
@@ -81,9 +82,8 @@ function MainCard({
   outcome?: Outcome;
 }) {
   return (
-    <section className="relative mx-auto flex w-full max-w-3xl min-w-0 flex-1 flex-col gap-8 overflow-hidden rounded-3xl bg-white p-6 md:p-8 lg:p-12">
-      {outcome ? <Confetti /> : null}
-      <div className="relative z-20 flex flex-col gap-4">
+    <section className="relative mx-auto flex w-full max-w-3xl min-w-0 flex-1 flex-col gap-8 rounded-3xl bg-white p-6 md:p-8 lg:p-12">
+      <div className="flex flex-col gap-4">
         <p
           className="text-[14px] font-medium leading-none text-[#e96748]"
           style={{ fontFamily: "var(--font-public-sans)" }}
@@ -99,12 +99,10 @@ function MainCard({
       </div>
 
       {outcome ? (
-        <div className="relative z-20">
-          <Decision outcome={outcome} />
-        </div>
+        <Decision outcome={outcome} />
       ) : (
         <div
-          className="relative z-20 flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-[#f5f5f5] p-12 text-center"
+          className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-[#f5f5f5] p-12 text-center"
           style={{ fontFamily: "var(--font-public-sans)" }}
         >
           <p className="text-[15px] text-[#1a1a1a]">
