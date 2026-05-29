@@ -151,7 +151,11 @@ function RoomInner({
           subgrid that ignores renderParticipant (falling back to its default
           beige avatar). Disabling it sends every tile through the main grid so
           our colored initials avatars apply to everyone. */}
-      <VideoGrid renderParticipant={renderParticipant} enableSubgrid={false} />
+      {/* absolute inset-0 gives the SDK grid a definite-size box to fill;
+          its internal height:100% won't resolve against a flex-sized parent. */}
+      <div className="absolute inset-0">
+        <VideoGrid renderParticipant={renderParticipant} enableSubgrid={false} />
+      </div>
       {state.connectionStatus !== "connected" ? (
         <Placeholder label={statusLabel(state.connectionStatus)} />
       ) : null}
@@ -332,7 +336,7 @@ function ControlButton({
 
 function RoomShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative aspect-[1003/639] w-full overflow-hidden rounded-xl bg-neutral-900">
+    <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-xl bg-neutral-900">
       {children}
     </div>
   );

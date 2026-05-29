@@ -7,7 +7,7 @@ export const WherebyRoom = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="relative aspect-[1003/639] w-full overflow-hidden rounded-xl bg-neutral-900" />
+      <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-xl bg-neutral-900" />
     ),
   }
 );

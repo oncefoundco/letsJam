@@ -21,14 +21,21 @@ export default async function SessionPage({
   const session = await getSession(sessionId);
   if (!session) notFound();
   return (
-    <div className="flex min-h-screen flex-col items-stretch gap-6 bg-background p-6 md:gap-8 md:p-8 lg:flex-row lg:items-start">
-      <MainColumn roomUrl={session.roomUrl} sessionId={session.id} />
-      <Sidebar
-        sessionId={session.id}
-        topic={session.topic}
-        files={session.files}
-        participants={session.participants}
-      />
+    <div className="flex min-h-screen flex-col gap-6 bg-background p-6 md:gap-8 md:p-8">
+      <header className="flex items-center">
+        <Link href="/" aria-label="Jam home" className="inline-flex">
+          <JamLogo />
+        </Link>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col gap-6 md:gap-8 lg:flex-row lg:items-stretch">
+        <MainColumn roomUrl={session.roomUrl} sessionId={session.id} />
+        <Sidebar
+          sessionId={session.id}
+          topic={session.topic}
+          files={session.files}
+          participants={session.participants}
+        />
+      </div>
     </div>
   );
 }
@@ -41,19 +48,12 @@ function MainColumn({
   sessionId: string;
 }) {
   return (
-    <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col lg:min-h-[calc(100vh-4rem)]">
-      <header className="flex items-center">
-        <Link href="/" aria-label="Jam home" className="inline-flex">
-          <JamLogo />
-        </Link>
-      </header>
-      <div className="flex flex-1 items-center justify-center pr-0 pt-8 lg:pr-16">
-        <WherebyRoom
-          roomUrl={roomUrl}
-          sessionId={sessionId}
-          leaveHref={`/self-reflection?session=${sessionId}`}
-        />
-      </div>
+    <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col lg:min-h-0">
+      <WherebyRoom
+        roomUrl={roomUrl}
+        sessionId={sessionId}
+        leaveHref={`/self-reflection?session=${sessionId}`}
+      />
     </div>
   );
 }
@@ -96,7 +96,7 @@ function Sidebar({
   participants: Participant[];
 }) {
   return (
-    <aside className="flex h-auto w-full flex-col justify-between gap-8 rounded-3xl bg-white p-6 lg:h-[calc(100vh-4rem)] lg:w-[420px] lg:gap-0 xl:w-[479px]">
+    <aside className="flex h-auto w-full flex-col justify-between gap-8 rounded-3xl bg-white p-6 lg:w-[420px] lg:gap-0 xl:w-[479px]">
       <div className="flex flex-col gap-16">
         <SessionInfo topic={topic} />
         <ParticipantList
