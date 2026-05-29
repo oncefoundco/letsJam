@@ -102,9 +102,15 @@ function RoomInner({
 
   const cameraOn = state.isCameraEnabled;
   const micOn = state.isMicrophoneEnabled;
-  const screenshareStatus = state.localScreenshareStatus;
-  const sharingScreen = screenshareStatus === "active";
-  const screenshareBusy = screenshareStatus === "starting";
+  // state.localScreenshareStatus is bugged in this SDK build — it reads
+  // from localParticipant.isScreenSharing, which is never flipped to
+  // true. Source of truth is state.screenshares; the entry with
+  // isLocal === true represents our active share.
+  const sharingScreen = state.screenshares.some((s) => s.isLocal);
+  // No reliable "starting" signal without the broken status field; keep
+  // the disabled affordance simple — block re-clicks only via React
+  // re-render after the screenshares array updates.
+  const screenshareBusy = false;
 
   return (
     <RoomShell>
