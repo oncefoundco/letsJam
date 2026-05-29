@@ -50,6 +50,7 @@ function MainColumn({
       <div className="flex flex-1 items-center justify-center pr-0 pt-8 lg:pr-16">
         <WherebyRoom
           roomUrl={roomUrl}
+          sessionId={sessionId}
           leaveHref={`/self-reflection?session=${sessionId}`}
         />
       </div>

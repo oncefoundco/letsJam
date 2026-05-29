@@ -1,4 +1,5 @@
 import { kv } from "@vercel/kv";
+import { AVATAR_COLORS } from "./avatar";
 
 // Sessions live in Upstash Redis (via @vercel/kv).
 // 24h TTL matches the Whereby room's endDate so storage and the call expire together.
@@ -73,18 +74,6 @@ export type StoredSession = {
   outcome?: Outcome;
 };
 
-const AVATAR_COLORS = [
-  "#9fd5f1",
-  "#f9f6b8",
-  "#d4f0da",
-  "#b9caf5",
-  "#ffd9fd",
-  "#fed7aa",
-  "#bae6fd",
-  "#bbf7d0",
-  "#e9d5ff",
-  "#fecaca",
-];
 
 function sessionKey(id: string) {
   return `session:${id}`;

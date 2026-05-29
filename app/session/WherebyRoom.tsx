@@ -4,32 +4,56 @@ import {
   WherebyProvider,
   useRoomConnection,
   VideoGrid,
+  GridVideoView,
 } from "@whereby.com/browser-sdk/react";
+import type { ClientView } from "@whereby.com/core";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { getInitials, colorForName } from "@/lib/avatar";
 
 export function WherebyRoom({
   roomUrl,
+  sessionId,
   leaveHref,
 }: {
   roomUrl: string;
+  sessionId: string;
   leaveHref: string;
 }) {
   return (
     <WherebyProvider>
-      <RoomInner roomUrl={roomUrl} leaveHref={leaveHref} />
+      <RoomInner roomUrl={roomUrl} sessionId={sessionId} leaveHref={leaveHref} />
     </WherebyProvider>
   );
 }
 
 function RoomInner({
   roomUrl,
+  sessionId,
   leaveHref,
 }: {
   roomUrl: string;
+  sessionId: string;
   leaveHref: string;
 }) {
   const router = useRouter();
+  // The waiting room stores this participant's record (name + color) in
+  // localStorage under participant.<sessionId>. Read the name so the SDK
+  // shows real initials instead of the "Guest" → "G" fallback. Absent
+  // (e.g. an unjoined host) falls back to the SDK default — no worse than
+  // before. This component is client-only (ssr:false), so localStorage is safe.
+  const displayName = useMemo(() => {
+    try {
+      const stored = localStorage.getItem(`participant.${sessionId}`);
+      if (!stored) return undefined;
+      const parsed = JSON.parse(stored) as { name?: unknown };
+      return typeof parsed.name === "string" && parsed.name.trim()
+        ? parsed.name.trim()
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [sessionId]);
   // SDK's toggleCamera/toggleMicrophone only flip enabled state on
   // already-acquired tracks; they do NOT call getUserMedia. Joining with
   // { audio: false, video: false } left the toggles dead. Acquire on mount
@@ -37,6 +61,7 @@ function RoomInner({
   // on releaseLocalMedia() below to clear the macOS green dot on leave.
   const { state, actions } = useRoomConnection(roomUrl, {
     localMediaOptions: { audio: true, video: true },
+    displayName,
   });
   const {
     joinRoom,
@@ -49,8 +74,12 @@ function RoomInner({
 
   // Latest state in a ref so the unmount cleanup can release the
   // local stream even if state changed between mount and unmount.
+  // Sync in an effect (after commit) rather than during render —
+  // writing a ref during render is a React anti-pattern (react-hooks/refs).
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Hard-stop any local tracks the SDK is still holding. leaveRoom()
   // disconnects the room but does NOT reliably release getUserMedia
@@ -118,7 +147,11 @@ function RoomInner({
 
   return (
     <RoomShell>
-      <VideoGrid />
+      {/* enableSubgrid={false}: the SDK routes camera-off participants into a
+          subgrid that ignores renderParticipant (falling back to its default
+          beige avatar). Disabling it sends every tile through the main grid so
+          our colored initials avatars apply to everyone. */}
+      <VideoGrid renderParticipant={renderParticipant} enableSubgrid={false} />
       {state.connectionStatus !== "connected" ? (
         <Placeholder label={statusLabel(state.connectionStatus)} />
       ) : null}
@@ -137,6 +170,48 @@ function RoomInner({
         onEnd={handleEnd}
       />
     </RoomShell>
+  );
+}
+
+// VideoGrid wraps each tile in a GridCell; renderParticipant returns only the
+// cell contents. GridVideoView reads the participant's stream from cell context.
+// Screenshares (isPresentation) and cameras-on render video; camera-off tiles
+// render our own initials avatar, colored deterministically from the name so
+// participants are distinguishable — two people sharing an initial still differ.
+function renderParticipant({ participant }: { participant: ClientView }) {
+  const hasVideo =
+    participant.isPresentation ||
+    (!!participant.isVideoEnabled && !!participant.stream);
+  if (hasVideo) return <GridVideoView />;
+  return <InitialsAvatar name={participant.displayName} />;
+}
+
+function InitialsAvatar({ name }: { name: string }) {
+  const initials = getInitials(name);
+  return (
+    <div className="grid h-full w-full place-items-center rounded-lg bg-neutral-900">
+      <svg
+        viewBox="0 0 100 100"
+        className="h-1/2 w-auto max-w-full"
+        style={{ aspectRatio: "1" }}
+        role="img"
+        aria-label={name || "Participant"}
+      >
+        <circle cx="50" cy="50" r="50" fill={colorForName(name)} />
+        <text
+          x="50"
+          y="50"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="38"
+          fontWeight="500"
+          fill="#000"
+          style={{ fontFamily: "var(--font-public-sans)" }}
+        >
+          {initials}
+        </text>
+      </svg>
+    </div>
   );
 }
 
