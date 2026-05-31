@@ -6,13 +6,12 @@ import {
   type SessionSummary,
 } from "@/lib/sessions";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
+import { SessionTimerControls } from "@/app/_components/SessionTimerControls";
 import { Logo } from "@/app/_components/Logo";
 import {
   ControlButton,
   HeaderControls,
   LinkIcon,
-  PauseIcon,
-  StatusPill,
   VideoIcon,
 } from "@/app/_components/HeaderControls";
 import { ReflectionForm } from "./ReflectionForm";
@@ -35,7 +34,7 @@ export default async function SelfReflectionPage({
   if (!session) notFound();
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <Header sessionId={session.id} hostId={session.participants[0]?.id} />
       <Body
         sessionId={session.id}
         topic={session.topic}
@@ -48,7 +47,7 @@ export default async function SelfReflectionPage({
   );
 }
 
-function Header() {
+function Header({ sessionId, hostId }: { sessionId: string; hostId?: string }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 px-6 py-6 md:px-12 lg:px-16">
       <Link href="/" className="inline-flex" aria-label="Jam home">
@@ -61,10 +60,11 @@ function Header() {
         <ControlButton aria-label="Copy invite link">
           <LinkIcon />
         </ControlButton>
-        <ControlButton aria-label="Pause">
-          <PauseIcon />
-        </ControlButton>
-        <StatusPill>4:24s remaining</StatusPill>
+        <SessionTimerControls
+          sessionId={sessionId}
+          phase="reflection"
+          hostId={hostId}
+        />
       </HeaderControls>
     </header>
   );

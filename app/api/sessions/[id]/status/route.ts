@@ -21,5 +21,6 @@ export async function GET(
     submittedIds: reflections.map((r) => r.participantId),
     round: currentRound(session),
     startedAt: session.startedAt ?? null,
+    timer: session.timer ?? null,
   });
 }

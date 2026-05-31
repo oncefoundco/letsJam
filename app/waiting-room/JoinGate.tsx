@@ -22,6 +22,9 @@ export function JoinGate({
   const router = useRouter();
   // null = still checking localStorage; true = already a participant in this jam.
   const [joined, setJoined] = useState<boolean | null>(null);
+  // Avatar colors already claimed by people in this jam, kept live so the
+  // picker hides whatever's been taken — including joins happening right now.
+  const [takenColors, setTakenColors] = useState<string[]>([]);
 
   useEffect(() => {
     try {
@@ -30,6 +33,38 @@ export function JoinGate({
       setJoined(false);
     }
   }, [sessionId]);
+
+  useEffect(() => {
+    // Only relevant while the join modal is up (signed in, not yet joined).
+    if (!authed || joined !== false) return;
+    let active = true;
+    async function refresh() {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/participants`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { participants?: { bg?: string }[] };
+        if (active && Array.isArray(data.participants)) {
+          setTakenColors(
+            data.participants
+              .map((p) => p.bg)
+              .filter((b): b is string => typeof b === "string")
+          );
+        }
+      } catch {
+        // transient — try again next tick
+      }
+    }
+    refresh();
+    const handle = setInterval(refresh, 3000);
+    window.addEventListener("jam:participant-changed", refresh);
+    return () => {
+      active = false;
+      clearInterval(handle);
+      window.removeEventListener("jam:participant-changed", refresh);
+    };
+  }, [authed, joined, sessionId]);
 
   // Auth is required, so show the login gate immediately (no localStorage needed).
   if (!authed) {
@@ -45,6 +80,7 @@ export function JoinGate({
       initialName={initialName}
       initialColor={initialColor}
       submitLabel="Join"
+      takenColors={takenColors}
       onComplete={async ({ name, color }) => {
         const supabase = createClient();
         // Remember their choice so it pre-fills next time. Best-effort.

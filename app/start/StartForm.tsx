@@ -14,12 +14,7 @@ export function StartForm() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [describe, setDescribe] = useState("");
-  const [emails, setEmails] = useState<string[]>([
-    "maya@organization.com",
-    "theo@organization.com",
-    "Priya@organization.com",
-    "sam@organization.com",
-  ]);
+  const [emails, setEmails] = useState<string[]>([]);
   const [when, setWhen] = useState<WhenOption>("Immediately");
   const [files, setFiles] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);

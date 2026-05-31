@@ -138,11 +138,15 @@ export function ProfileModal({
   initialName = "",
   initialColor,
   submitLabel = "Continue",
+  takenColors = [],
   onComplete,
 }: {
   initialName?: string;
   initialColor?: string;
   submitLabel?: string;
+  // Colors already claimed by other people in this session — hidden from the
+  // palette so everyone ends up with a distinct avatar.
+  takenColors?: string[];
   onComplete: (profile: { name: string; color: string }) => Promise<void> | void;
 }) {
   const [name, setName] = useState(initialName);
@@ -150,14 +154,22 @@ export function ProfileModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const taken = new Set(takenColors);
+  const available = PROFILE_COLORS.filter((c) => !taken.has(c));
+  // If the picked color was just claimed by someone else (or the default is
+  // taken), fall back to the first free one — derived during render so we never
+  // submit a color that's no longer available.
+  const effectiveColor = !taken.has(color) ? color : available[0] ?? color;
+  const full = available.length === 0;
+
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed || submitting) return;
+    if (!trimmed || submitting || full) return;
     setSubmitting(true);
     setError(null);
     try {
-      await onComplete({ name: trimmed, color });
+      await onComplete({ name: trimmed, color: effectiveColor });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setSubmitting(false);
@@ -185,33 +197,39 @@ export function ProfileModal({
 
         <div className="flex flex-col gap-3">
           <span className="text-[14px] text-black">Pick your preferred color</span>
-          <div className="flex flex-wrap items-center gap-2">
-            {PROFILE_COLORS.map((c) => {
-              const selected = c === color;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  aria-label={`Choose color ${c}`}
-                  aria-pressed={selected}
-                  onClick={() => setColor(c)}
-                  className={`size-10 rounded-full transition-transform ${
-                    selected
-                      ? "ring-2 ring-black/70 ring-offset-2 scale-105"
-                      : "hover:scale-105"
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              );
-            })}
-          </div>
+          {full ? (
+            <p className="text-[13px] text-black/50">
+              Every color is taken — this jam is already full.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              {available.map((c) => {
+                const selected = c === effectiveColor;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-label={`Choose color ${c}`}
+                    aria-pressed={selected}
+                    onClick={() => setColor(c)}
+                    className={`size-10 rounded-full transition-transform ${
+                      selected
+                        ? "ring-2 ring-black/70 ring-offset-2 scale-105"
+                        : "hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {error ? <p className="text-[13px] text-red-600">{error}</p> : null}
 
         <button
           type="submit"
-          disabled={!name.trim() || submitting}
+          disabled={!name.trim() || submitting || full}
           className="flex w-full items-center justify-center rounded-[16px] bg-[#1a1a1a] p-4 text-[14px] font-medium text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
           style={{ fontFamily: "var(--font-inter)" }}
         >

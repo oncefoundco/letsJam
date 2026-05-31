@@ -1,5 +1,11 @@
 import { kv } from "@vercel/kv";
 import { AVATAR_COLORS } from "./avatar";
+import { DEFAULT_PHASE_MS, type PhaseTimer, type TimerPhase } from "./timer";
+import {
+  loadSession,
+  persistSession,
+  sessionIdByRoomName,
+} from "./sessionStore";
 
 // Sessions live in Upstash Redis (via @vercel/kv).
 // 24h TTL matches the Whereby room's endDate so storage and the call expire together.
@@ -76,6 +82,9 @@ export type StoredSession = {
   // Refine reasons carried forward to sharpen the next round's synthesis.
   refineContext?: string[];
   outcome?: Outcome;
+  // Live phase countdown. Cached in Redis only (not persisted to Postgres);
+  // fine for a short-lived timer. See lib/timer.ts.
+  timer?: PhaseTimer;
 };
 
 
@@ -102,18 +111,31 @@ export async function linkRoomToSession(
 export async function getSessionIdByRoomName(
   roomName: string
 ): Promise<string | null> {
-  return (await kv.get<string>(roomKey(roomName))) ?? null;
+  // Redis index first (fast); fall back to the durable jams.whereby_room_name.
+  const cached = await kv.get<string>(roomKey(roomName));
+  if (cached) return cached;
+  return sessionIdByRoomName(normalizeRoomName(roomName));
 }
 
+// Supabase (Postgres) is the durable source of truth; Redis is a cache-aside
+// layer so hot reads stay fast. Writes go to Postgres first, then refresh the
+// cache. If the Postgres write fails we surface the error rather than leaving
+// the cache ahead of the source of truth.
 export async function saveSession(session: StoredSession): Promise<void> {
+  await persistSession(session);
   await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
 }
 
 export async function getSession(
   id: string
 ): Promise<StoredSession | undefined> {
-  const session = await kv.get<StoredSession>(sessionKey(id));
-  return session ?? undefined;
+  const cached = await kv.get<StoredSession>(sessionKey(id));
+  if (cached) return cached;
+  // Cache miss — load from the source of truth and backfill the cache.
+  const session = await loadSession(id);
+  if (!session) return undefined;
+  await kv.set(sessionKey(id), session, { ex: SESSION_TTL_SECONDS });
+  return session;
 }
 
 // Read-modify-write. Concurrent joins (sub-second) could lose a participant; acceptable
@@ -127,8 +149,15 @@ export async function addParticipant(
 ): Promise<Participant | null> {
   const session = await getSession(sessionId);
   if (!session) return null;
+  // Keep avatars distinct: honor the requested color only if no one else has it
+  // (the picker hides taken colors, but two near-simultaneous joins could still
+  // request the same one). Otherwise fall back to the first free palette color.
+  const used = new Set(session.participants.map((p) => p.bg));
   const bg =
-    color ?? AVATAR_COLORS[session.participants.length % AVATAR_COLORS.length];
+    color && !used.has(color)
+      ? color
+      : AVATAR_COLORS.find((c) => !used.has(c)) ??
+        AVATAR_COLORS[session.participants.length % AVATAR_COLORS.length];
   const participant: Participant = {
     id: crypto.randomUUID(),
     name,
@@ -160,6 +189,75 @@ export async function setPerspectives(
   session.perspectives = perspectives;
   await saveSession(session);
   return true;
+}
+
+// ── Phase timer ──────────────────────────────────────────────────────────────
+// Host-only enforcement lives in the timer route; these just read-modify-write.
+
+// Start the countdown for a phase. Idempotent: if a non-ended timer for this
+// phase already runs, leave it be so re-mounts don't reset the clock.
+export async function ensurePhaseTimer(
+  sessionId: string,
+  phase: TimerPhase,
+  durationMs: number = DEFAULT_PHASE_MS
+): Promise<PhaseTimer | null> {
+  const session = await getSession(sessionId);
+  if (!session) return null;
+  const current = session.timer;
+  if (current && current.phase === phase && current.endedAt == null) {
+    return current;
+  }
+  const timer: PhaseTimer = {
+    phase,
+    startedAt: Date.now(),
+    durationMs,
+    pausedAt: null,
+    pausedAccumMs: 0,
+    endedAt: null,
+  };
+  session.timer = timer;
+  await saveSession(session);
+  return timer;
+}
+
+export async function pausePhaseTimer(
+  sessionId: string
+): Promise<PhaseTimer | null> {
+  const session = await getSession(sessionId);
+  if (!session?.timer) return null;
+  const t = session.timer;
+  if (t.endedAt == null && t.pausedAt == null) {
+    t.pausedAt = Date.now();
+    await saveSession(session);
+  }
+  return t;
+}
+
+export async function resumePhaseTimer(
+  sessionId: string
+): Promise<PhaseTimer | null> {
+  const session = await getSession(sessionId);
+  if (!session?.timer) return null;
+  const t = session.timer;
+  if (t.endedAt == null && t.pausedAt != null) {
+    t.pausedAccumMs += Date.now() - t.pausedAt;
+    t.pausedAt = null;
+    await saveSession(session);
+  }
+  return t;
+}
+
+export async function stopPhaseTimer(
+  sessionId: string
+): Promise<PhaseTimer | null> {
+  const session = await getSession(sessionId);
+  if (!session?.timer) return null;
+  const t = session.timer;
+  if (t.endedAt == null) {
+    t.endedAt = Date.now();
+    await saveSession(session);
+  }
+  return t;
 }
 
 // Upsert a participant's reflection — re-submitting replaces the prior one.

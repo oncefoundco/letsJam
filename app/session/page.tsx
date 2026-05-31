@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ClockIcon } from "@heroicons/react/24/outline";
 import { getSession } from "@/lib/sessions";
 import { WherebyRoom } from "./WherebyRoomClient";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
+import { SessionTimerControls } from "@/app/_components/SessionTimerControls";
 import { Logo } from "@/app/_components/Logo";
+import { ControlButton, HeaderControls } from "@/app/_components/HeaderControls";
 
 export const metadata = {
   title: "Session — Jam",
@@ -23,10 +26,20 @@ export default async function SessionPage({
   if (!session) notFound();
   return (
     <div className="flex min-h-screen flex-col gap-6 bg-background p-6 md:gap-8 md:p-8">
-      <header className="flex items-center">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/" aria-label="Jam home" className="inline-flex">
           <Logo />
         </Link>
+        <HeaderControls>
+          <ControlButton aria-label="Time remaining">
+            <ClockIcon className="size-[18px]" />
+          </ControlButton>
+          <SessionTimerControls
+            sessionId={session.id}
+            phase="discussion"
+            hostId={session.participants[0]?.id}
+          />
+        </HeaderControls>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-6 md:gap-8 lg:flex-row lg:items-stretch">
         <MainColumn roomUrl={session.roomUrl} sessionId={session.id} />
@@ -37,7 +50,7 @@ export default async function SessionPage({
           files={session.files}
           sessionId={session.id}
           participants={session.participants}
-          participantLabel="In the waiting room"
+          participantLabel="In the room"
         />
       </div>
     </div>
