@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getSession, type Participant } from "@/lib/sessions";
+import { createClient } from "@/lib/supabase/server";
 import { VideoPreview } from "./VideoPreviewClient";
 import { InviteModal } from "./InviteModal";
-import { JoinModal } from "./JoinModal";
+import { JoinGate } from "./JoinGate";
 import { MainCardActions } from "./MainCardActions";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { Logo } from "@/app/_components/Logo";
@@ -23,6 +25,22 @@ export default async function WaitingRoomPage({
   if (!sessionId) notFound();
   const session = await getSession(sessionId);
   if (!session) notFound();
+
+  // Joiners must sign in and set name + color — same gate as the host.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const meta = user?.user_metadata ?? {};
+  const authed = Boolean(user);
+  const initialName =
+    (meta.display_name as string) ||
+    (meta.full_name as string) ||
+    (meta.name as string) ||
+    "";
+  const initialColor =
+    typeof meta.color === "string" ? (meta.color as string) : undefined;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -33,7 +51,14 @@ export default async function WaitingRoomPage({
         participants={session.participants}
       />
       <InviteModal />
-      <JoinModal />
+      <Suspense fallback={null}>
+        <JoinGate
+          sessionId={session.id}
+          authed={authed}
+          initialName={initialName}
+          initialColor={initialColor}
+        />
+      </Suspense>
     </div>
   );
 }

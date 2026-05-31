@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 // Color swatches from the Figma profile design. Stored as the participant's
 // avatar `bg`, so whatever's picked here is what shows next to their name.
-const PROFILE_COLORS = [
+export const PROFILE_COLORS = [
   "#62a1f1",
   "#ed6653",
   "#4db96e",
@@ -15,19 +15,42 @@ const PROFILE_COLORS = [
   "#9d6fff",
 ] as const;
 
-type Props = {
-  // Resolved server-side so the right modal shows on first paint (no flash).
+// ── Host gate ──────────────────────────────────────────────────────────────
+// Drives /start: not signed in → Google login; signed in without a profile →
+// name/color. The same LoginModal/ProfileModal are reused by the waiting-room
+// JoinGate so the joiner experience is identical.
+export function AuthGate({
+  authed,
+  needsProfile,
+  initialName,
+}: {
   authed: boolean;
   needsProfile: boolean;
   initialName?: string;
-};
-
-export function AuthGate({ authed, needsProfile, initialName }: Props) {
-  if (!authed) return <LoginModal />;
-  if (needsProfile) return <ProfileModal initialName={initialName} />;
+}) {
+  const router = useRouter();
+  if (!authed) return <LoginModal next="/start" />;
+  if (needsProfile) {
+    return (
+      <ProfileModal
+        initialName={initialName}
+        onComplete={async ({ name, color }) => {
+          const supabase = createClient();
+          const { error } = await supabase.auth.updateUser({
+            data: { display_name: name, color },
+          });
+          if (error) throw error;
+          // Re-render the server component so it sees the completed profile and
+          // dismisses the gate.
+          router.refresh();
+        }}
+      />
+    );
+  }
   return null;
 }
 
+// ── Shared modal chrome ──────────────────────────────────────────────────────
 function ModalShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-6">
@@ -54,7 +77,10 @@ function ModalTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function LoginModal() {
+// ── Login modal ──────────────────────────────────────────────────────────────
+// `next` is where the OAuth callback returns the user after sign-in (e.g.
+// "/start" for the host, "/waiting-room?session=ID" for a joiner).
+export function LoginModal({ next = "/start" }: { next?: string }) {
   const params = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(
@@ -70,7 +96,7 @@ function LoginModal() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/start`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
       });
       if (error) throw error;
@@ -104,10 +130,23 @@ function LoginModal() {
   );
 }
 
-function ProfileModal({ initialName }: { initialName?: string }) {
-  const router = useRouter();
-  const [name, setName] = useState(initialName ?? "");
-  const [color, setColor] = useState<string>(PROFILE_COLORS[0]);
+// ── Profile modal ────────────────────────────────────────────────────────────
+// Collects name + color and hands them to `onComplete`. The caller decides what
+// to do with them (host: save to profile + refresh; joiner: save + join the
+// session). Pre-fills from `initialName`/`initialColor`.
+export function ProfileModal({
+  initialName = "",
+  initialColor,
+  submitLabel = "Continue",
+  onComplete,
+}: {
+  initialName?: string;
+  initialColor?: string;
+  submitLabel?: string;
+  onComplete: (profile: { name: string; color: string }) => Promise<void> | void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [color, setColor] = useState<string>(initialColor ?? PROFILE_COLORS[0]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,16 +157,9 @@ function ProfileModal({ initialName }: { initialName?: string }) {
     setSubmitting(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({
-        data: { display_name: trimmed, color },
-      });
-      if (error) throw error;
-      // Re-render the server component so it sees the completed profile and
-      // dismisses the gate.
-      router.refresh();
+      await onComplete({ name: trimmed, color });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save your profile");
+      setError(err instanceof Error ? err.message : "Something went wrong");
       setSubmitting(false);
     }
   }
@@ -183,7 +215,7 @@ function ProfileModal({ initialName }: { initialName?: string }) {
           className="flex w-full items-center justify-center rounded-[16px] bg-[#1a1a1a] p-4 text-[14px] font-medium text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
           style={{ fontFamily: "var(--font-inter)" }}
         >
-          {submitting ? "Saving…" : "Continue"}
+          {submitting ? "Saving…" : submitLabel}
         </button>
       </form>
     </ModalShell>

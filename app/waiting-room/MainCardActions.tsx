@@ -24,7 +24,7 @@ export function MainCardActions({
   const [error, setError] = useState<string | null>(null);
 
   // Identify the current participant + whether they're the host. Re-runs
-  // whenever JoinModal completes (it dispatches "jam:participant-changed"),
+  // whenever the join gate completes (it dispatches "jam:participant-changed"),
   // so late joiners flow from "no participant" to registered without a
   // page reload.
   useEffect(() => {
@@ -99,7 +99,7 @@ export function MainCardActions({
 
   // Countdown overlay handles its own ticking + redirect. Only fire it
   // once the user is actually registered — otherwise a late joiner whose
-  // JoinModal hasn't been submitted yet gets dragged into /session
+  // join gate hasn't been submitted yet gets dragged into /session
   // anonymously the instant we discover startedAt is in the past.
   if (startedAt && hasParticipant) {
     return (
@@ -110,8 +110,8 @@ export function MainCardActions({
     );
   }
   if (startedAt && !hasParticipant) {
-    // JoinModal is covering the screen; JoinModal will route to /session
-    // itself once the name is captured.
+    // The join gate is covering the screen; it will route to /session
+    // itself once the joiner has signed in and set their name.
     return null;
   }
 

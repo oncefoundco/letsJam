@@ -46,7 +46,7 @@ export function StartForm() {
         id: string;
         host?: { id: string; name: string; bg: string };
       };
-      // Pre-stash the host's participant identity so JoinModal doesn't prompt them.
+      // Pre-stash the host's participant identity so the join gate doesn't prompt them.
       if (host) {
         try {
           localStorage.setItem(`participant.${id}`, JSON.stringify(host));
