@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { StartForm } from "./StartForm";
 import { Logo } from "@/app/_components/Logo";
 import { AuthGate } from "./AuthGate";
+import { SignupTease } from "./SignupTease";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
@@ -28,7 +29,9 @@ export default async function StartSessionPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <Body />
+      {/* Before sign-in, show a populated tease of the real screen behind the
+          auth modal. Once signed in, render the live, interactive form. */}
+      {authed ? <Body /> : <SignupTease />}
       <Suspense fallback={null}>
         <AuthGate
           authed={authed}
