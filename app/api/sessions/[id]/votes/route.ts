@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import {
   currentRound,
+  dotColorsByOption,
+  dotVotersDone,
   getSession,
-  recordVote,
-  tallyVotes,
-  votesThisRound,
-  type VoteChoice,
+  setDotAllocation,
+  tallyDots,
+  DOTS_PER_PARTICIPANT,
 } from "@/lib/sessions";
 
-// Status of the current voting round.
+// Status of the current dot-voting round.
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -20,27 +21,39 @@ export async function GET(
   }
 
   const round = currentRound(session);
-  const votes = votesThisRound(session);
   const total = session.participants.length;
+  const done = dotVotersDone(session);
+  const pid = new URL(req.url).searchParams.get("pid");
+  const mine = pid
+    ? (session.dotVotes ?? [])
+        .filter((d) => d.round === round && d.participantId === pid)
+        .map((d) => ({ optionId: d.optionId, dots: d.dots }))
+    : [];
+
   return NextResponse.json({
     round,
     total,
-    voted: votes.length,
-    allVoted: total > 0 && votes.length >= total,
-    tally: tallyVotes(session),
-    voterIds: votes.map((v) => v.participantId),
-    outcome: session.outcome && session.outcome.round === round ? session.outcome : null,
+    done: done.length,
+    allIn: total > 0 && done.length >= total,
+    tally: tallyDots(session),
+    dotsByOption: dotColorsByOption(session),
+    dotsPerParticipant: DOTS_PER_PARTICIPANT,
+    decided:
+      session.decision && session.decision.round === round
+        ? session.decision
+        : null,
+    mine,
   });
 }
 
-// Cast (or change) a vote for the current round.
+// Set (or change) this participant's dot allocation for the current round.
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
-  let body: { participantId?: unknown; choice?: unknown; reason?: unknown };
+  let body: { participantId?: unknown; allocations?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -56,33 +69,29 @@ export async function POST(
     );
   }
 
-  const choice = body.choice;
-  if (choice !== "A" && choice !== "B" && choice !== "refine") {
-    return NextResponse.json(
-      { error: "choice must be A, B or refine" },
-      { status: 400 }
-    );
-  }
+  const allocations = Array.isArray(body.allocations)
+    ? body.allocations
+        .filter(
+          (a): a is { optionId: string; dots: number } =>
+            !!a &&
+            typeof a.optionId === "string" &&
+            typeof a.dots === "number"
+        )
+        .map((a) => ({ optionId: a.optionId, dots: a.dots }))
+    : [];
 
-  const reason =
-    typeof body.reason === "string" ? body.reason.trim().slice(0, 4000) : "";
-  if (choice === "refine" && !reason) {
-    return NextResponse.json(
-      { error: "A refine vote needs a written reason" },
-      { status: 400 }
-    );
-  }
-
-  const result = await recordVote(id, {
-    participantId,
-    choice: choice as VoteChoice,
-    reason: reason || undefined,
-  });
+  const result = await setDotAllocation(id, participantId, allocations);
   if (result === "no-session") {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
   if (result === "unknown-participant") {
     return NextResponse.json({ error: "Unknown participant" }, { status: 403 });
+  }
+  if (result === "too-many") {
+    return NextResponse.json(
+      { error: `You only have ${DOTS_PER_PARTICIPANT} dots` },
+      { status: 400 }
+    );
   }
   return NextResponse.json({ ok: true });
 }

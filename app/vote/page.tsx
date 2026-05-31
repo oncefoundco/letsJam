@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import {
   getSession,
   type Participant,
-  type Perspective,
+  type JamOption,
 } from "@/lib/sessions";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { SessionTimerControls } from "@/app/_components/SessionTimerControls";
@@ -15,7 +15,7 @@ import {
   VideoIcon,
 } from "@/app/_components/HeaderControls";
 import { SynthesizePanel } from "./SynthesizePanel";
-import { VotePanel } from "./VotePanel";
+import { DotVotePanel } from "./DotVotePanel";
 
 export const metadata = {
   title: "Vote — Jam",
@@ -40,7 +40,7 @@ export default async function VotePage({
         topic={session.topic}
         files={session.files}
         participants={session.participants}
-        perspectives={session.perspectives}
+        options={session.options}
         round={session.round ?? 1}
         hostId={session.participants[0]?.id}
         decisions={session.summary?.decisions}
@@ -77,7 +77,7 @@ function Body({
   topic,
   files,
   participants,
-  perspectives,
+  options,
   round,
   hostId,
   decisions,
@@ -86,7 +86,7 @@ function Body({
   topic: string;
   files: string[];
   participants: Participant[];
-  perspectives?: Perspective[];
+  options?: JamOption[];
   round: number;
   hostId?: string;
   decisions?: string[];
@@ -95,7 +95,7 @@ function Body({
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
       <MainCard
         sessionId={sessionId}
-        perspectives={perspectives}
+        options={options}
         round={round}
         hostId={hostId}
       />
@@ -114,16 +114,16 @@ function Body({
 
 function MainCard({
   sessionId,
-  perspectives,
+  options,
   round,
   hostId,
 }: {
   sessionId: string;
-  perspectives?: Perspective[];
+  options?: JamOption[];
   round: number;
   hostId?: string;
 }) {
-  const ready = perspectives && perspectives.length >= 2;
+  const ready = options && options.length > 0;
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-white p-6 md:p-8 lg:p-12">
       <div className="flex flex-col gap-4">
@@ -137,14 +137,14 @@ function MainCard({
           className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
           style={{ fontFamily: "var(--font-queens)" }}
         >
-          Vote on your
+          Vote on your direction
         </h1>
       </div>
 
       {ready ? (
-        <VotePanel
+        <DotVotePanel
           sessionId={sessionId}
-          perspectives={perspectives!}
+          options={options!}
           round={round}
           hostId={hostId}
         />

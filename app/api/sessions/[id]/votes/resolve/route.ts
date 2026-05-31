@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveVotes } from "@/lib/sessions";
+import { resolveDots } from "@/lib/sessions";
 
 // Resolve the current round. Host calls this (force=true to advance early);
 // the regular path only resolves once everyone has voted. Idempotent.
@@ -17,7 +17,7 @@ export async function POST(
     // empty body is fine
   }
 
-  const result = await resolveVotes(id, { force });
+  const result = await resolveDots(id, { force });
   if (!result) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }

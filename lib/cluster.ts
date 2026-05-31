@@ -87,3 +87,89 @@ export async function clusterReflections(
   const labels = ["Perspective A", "Perspective B"];
   return out.slice(0, 2).map((p, i) => ({ label: labels[i] ?? `Perspective ${i + 1}`, ...p }));
 }
+
+// ── Dot-voting options ───────────────────────────────────────────────────────
+// Each private reflection is a participant's proposed direction. Turn the takes
+// into distinct option cards the room will dot-vote on (one per proposal, merging
+// only near-identical ones).
+
+const OptionsSchema = z.object({
+  options: z.array(
+    z.object({
+      title: z.string(),
+      body: z.string(),
+      attribution: z.string(),
+    })
+  ),
+});
+
+const OPTIONS_SYSTEM_PROMPT = `You read a team's PRIVATE written reflections on a strategic question. Each reflection is one participant's proposed direction for what the team should do. Turn them into a set of distinct OPTION CARDS the room will dot-vote on.
+
+For each option:
+- title: a short, concrete name for the direction (max ~8 words). Not vague.
+- body: 2-3 sentences — what the option is and the reasoning behind it.
+- attribution: whose thinking it came from, by name. e.g. "Simon's take" or "Shaped by Maya and Theo".
+
+Rules:
+- Produce ONE option per distinct proposal. Merge only near-identical proposals, combining their attributions.
+- Aim for 2-6 options; each must be a genuinely DIFFERENT direction, not a rephrasing.
+- Ground everything in what people actually wrote. Do not invent positions nobody raised.
+- Be specific and decision-oriented — these are the options the team votes between.
+- The transcript summary (if provided) is only background; the reflections are the real signal.`;
+
+export type ProposedOption = { title: string; body: string; attribution: string };
+
+export async function proposeOptions(
+  topic: string,
+  reflections: Reflection[],
+  summary?: SessionSummary,
+  refineContext?: string[]
+): Promise<ProposedOption[]> {
+  const written = reflections
+    .filter((r) => !r.passed && r.text.trim().length > 0)
+    .map((r) => `${r.name}: ${r.text}`)
+    .join("\n\n");
+
+  const refine =
+    refineContext && refineContext.length > 0
+      ? `\n\nThe previous round was sent back to refine. What was missing:\n${refineContext.join(
+          "\n"
+        )}\nMake the options genuinely sharper and address these gaps.`
+      : "";
+
+  const context = summary
+    ? [
+        "Discussion context (background only):",
+        summary.decisions.length ? `Decisions: ${summary.decisions.join("; ")}` : "",
+        summary.openQuestions.length
+          ? `Open questions: ${summary.openQuestions.join("; ")}`
+          : "",
+        summary.differences.length
+          ? `Differences: ${summary.differences.join("; ")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  const response = await client.messages.parse({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2000,
+    system: [
+      {
+        type: "text",
+        text: OPTIONS_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: `Topic: ${topic}\n\n${context}\n\nPrivate reflections:\n${written}${refine}`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(OptionsSchema) },
+  });
+
+  return (response.parsed_output?.options ?? []).slice(0, 6);
+}

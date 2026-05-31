@@ -53,14 +53,14 @@ export function SynthesizePanel({ sessionId }: { sessionId: string }) {
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-black/20 border-t-[#e85d3c]" />
           <p className="text-[15px] text-[#1a1a1a]">Reading the room…</p>
           <p className="text-[13px] text-black/55">
-            Clustering everyone&apos;s reflections into two paths.
+            Turning everyone&apos;s reflections into options to vote on.
           </p>
         </>
       ) : state.kind === "empty" ? (
         <>
           <p className="text-[15px] text-[#1a1a1a]">No reflections yet</p>
           <p className="text-[13px] text-black/55">
-            Once people submit their take in Self Reflection, the two paths
+            Once people submit their take in Self Reflection, the options
             appear here.
           </p>
         </>

@@ -2,6 +2,13 @@ import { kv } from "@vercel/kv";
 import { AVATAR_COLORS } from "./avatar";
 import { DEFAULT_PHASE_MS, type PhaseTimer, type TimerPhase } from "./timer";
 import {
+  DOTS_PER_PARTICIPANT,
+  REFINE_OPTION_ID,
+  type DotAllocation,
+  type DotResolution,
+  type JamOption,
+} from "./voting";
+import {
   loadSession,
   persistSession,
   sessionIdByRoomName,
@@ -44,6 +51,12 @@ export type Perspective = {
   attribution: string;
 };
 
+// Dot voting (Develop → Deliver). Constants/types live in the client-safe
+// lib/voting.ts; re-exported here so server code can keep importing from
+// "@/lib/sessions".
+export { DOTS_PER_PARTICIPANT, REFINE_OPTION_ID };
+export type { JamOption, DotAllocation, DotResolution };
+
 export type VoteChoice = "A" | "B" | "refine";
 
 export type Vote = {
@@ -85,6 +98,11 @@ export type StoredSession = {
   // Live phase countdown. Cached in Redis only (not persisted to Postgres);
   // fine for a short-lived timer. See lib/timer.ts.
   timer?: PhaseTimer;
+  // Dot-voting state (Redis-only for now, like timer). `decision` is the chosen
+  // option once the dot vote resolves — see lib/timer.ts note on persistence.
+  options?: JamOption[];
+  dotVotes?: DotAllocation[];
+  decision?: { round: number; option: JamOption };
 };
 
 
@@ -412,6 +430,150 @@ export async function resolveVotes(
   session.outcome = { round, choice, perspective };
   await saveSession(session);
   return { resolution: "decided", round, outcome: session.outcome };
+}
+
+// ── Dot voting ───────────────────────────────────────────────────────────────
+
+// Turn this round's written reflections into option cards. Idempotent: returns
+// existing options if already generated. Empty array if nobody has written yet.
+export async function ensureOptions(sessionId: string): Promise<JamOption[] | null> {
+  const session = await getSession(sessionId);
+  if (!session) return null;
+  if (session.options && session.options.length > 0) return session.options;
+  const written = (session.reflections ?? []).filter(
+    (r) => !r.passed && r.text.trim().length > 0
+  );
+  if (written.length === 0) return [];
+  const { proposeOptions } = await import("./cluster");
+  const proposed = await proposeOptions(
+    session.topic,
+    session.reflections ?? [],
+    session.summary,
+    session.refineContext
+  );
+  const options: JamOption[] = proposed.map((o) => ({
+    id: crypto.randomUUID(),
+    ...o,
+  }));
+  session.options = options;
+  await saveSession(session);
+  return options;
+}
+
+// Replace a participant's dot allocation for the current round. Total dots must
+// not exceed DOTS_PER_PARTICIPANT.
+export async function setDotAllocation(
+  sessionId: string,
+  participantId: string,
+  allocations: { optionId: string; dots: number }[]
+): Promise<"ok" | "no-session" | "unknown-participant" | "too-many"> {
+  const session = await getSession(sessionId);
+  if (!session) return "no-session";
+  if (!session.participants.find((p) => p.id === participantId)) {
+    return "unknown-participant";
+  }
+  const round = currentRound(session);
+  const valid = allocations
+    .map((a) => ({ optionId: a.optionId, dots: Math.max(0, Math.floor(a.dots)) }))
+    .filter(
+      (a) =>
+        a.dots > 0 &&
+        (a.optionId === REFINE_OPTION_ID ||
+          (session.options ?? []).some((o) => o.id === a.optionId))
+    );
+  const total = valid.reduce((sum, a) => sum + a.dots, 0);
+  if (total > DOTS_PER_PARTICIPANT) return "too-many";
+
+  session.dotVotes = (session.dotVotes ?? []).filter(
+    (d) => !(d.participantId === participantId && d.round === round)
+  );
+  for (const a of valid) {
+    session.dotVotes.push({ participantId, optionId: a.optionId, dots: a.dots, round });
+  }
+  await saveSession(session);
+  return "ok";
+}
+
+export function tallyDots(session: StoredSession): Record<string, number> {
+  const round = currentRound(session);
+  const tally: Record<string, number> = {};
+  for (const d of session.dotVotes ?? []) {
+    if (d.round === round) tally[d.optionId] = (tally[d.optionId] ?? 0) + d.dots;
+  }
+  return tally;
+}
+
+// Colors of the dots cast on each option, for the per-voter colored dots in the
+// UI (one entry per dot, in the participant's avatar color).
+export function dotColorsByOption(
+  session: StoredSession
+): Record<string, string[]> {
+  const round = currentRound(session);
+  const colorById = new Map(session.participants.map((p) => [p.id, p.bg]));
+  const out: Record<string, string[]> = {};
+  for (const d of session.dotVotes ?? []) {
+    if (d.round !== round) continue;
+    const color = colorById.get(d.participantId) ?? "#cccccc";
+    (out[d.optionId] ??= []).push(...Array(d.dots).fill(color));
+  }
+  return out;
+}
+
+// Participants who have spent all their dots this round (i.e. they're "in").
+export function dotVotersDone(session: StoredSession): string[] {
+  const round = currentRound(session);
+  const byParticipant = new Map<string, number>();
+  for (const d of session.dotVotes ?? []) {
+    if (d.round === round) {
+      byParticipant.set(d.participantId, (byParticipant.get(d.participantId) ?? 0) + d.dots);
+    }
+  }
+  return [...byParticipant.entries()]
+    .filter(([, total]) => total >= DOTS_PER_PARTICIPANT)
+    .map(([id]) => id);
+}
+
+// Resolve the dot vote. Winner = option with the most dots → decided. If the
+// refine card wins, or the top is a tie with no clear winner, loop the round.
+export async function resolveDots(
+  sessionId: string,
+  { force = false }: { force?: boolean } = {}
+): Promise<DotResolution | null> {
+  const session = await getSession(sessionId);
+  if (!session) return null;
+  const round = currentRound(session);
+
+  if (session.decision && session.decision.round === round) {
+    return { resolution: "decided", round, option: session.decision.option };
+  }
+
+  const total = session.participants.length;
+  const done = dotVotersDone(session);
+  const allIn = total > 0 && done.length >= total;
+  if (!allIn && !force) return { resolution: "pending", round };
+
+  const tally = tallyDots(session);
+  const entries = Object.entries(tally).filter(([, d]) => d > 0);
+  if (entries.length === 0) return { resolution: "pending", round };
+  entries.sort((a, b) => b[1] - a[1]);
+  const [topId, topDots] = entries[0];
+  const topTie = entries.filter(([, d]) => d === topDots).length > 1;
+
+  // Refine when the refine card leads, or the top real options deadlock.
+  if (topId === REFINE_OPTION_ID || topTie) {
+    session.round = round + 1;
+    session.dotVotes = (session.dotVotes ?? []).filter((d) => d.round !== round);
+    session.options = undefined;
+    session.reflections = [];
+    await saveSession(session);
+    return { resolution: "refining", round: session.round };
+  }
+
+  const winner = (session.options ?? []).find((o) => o.id === topId);
+  if (!winner) return { resolution: "pending", round };
+  session.decision = { round, option: winner };
+  await saveSession(session);
+  return { resolution: "decided", round, option: winner };
 }
 
 export async function createWherebyRoom(): Promise<{
