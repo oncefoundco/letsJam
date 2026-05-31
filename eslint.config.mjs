@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Reading a client-only value (localStorage, window.location) in an effect
+      // and setting state is intentional here: it defers the value to after
+      // hydration so server and client first renders match. Initializing that
+      // state synchronously would reintroduce hydration mismatches, so we keep
+      // the pattern and treat this rule as advisory rather than a build blocker.
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;
