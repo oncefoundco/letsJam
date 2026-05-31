@@ -114,14 +114,17 @@ export async function getSession(
 
 // Read-modify-write. Concurrent joins (sub-second) could lose a participant; acceptable
 // for now since join rate is low. Move to RPUSH on a separate participants list if it bites.
+// `color` lets a signed-in user carry their chosen profile color; otherwise we
+// fall back to the rotating palette so guests still get distinct avatars.
 export async function addParticipant(
   sessionId: string,
-  name: string
+  name: string,
+  color?: string
 ): Promise<Participant | null> {
   const session = await getSession(sessionId);
   if (!session) return null;
   const bg =
-    AVATAR_COLORS[session.participants.length % AVATAR_COLORS.length];
+    color ?? AVATAR_COLORS[session.participants.length % AVATAR_COLORS.length];
   const participant: Participant = {
     id: crypto.randomUUID(),
     name,

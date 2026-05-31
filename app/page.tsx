@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { Logo } from "@/app/_components/Logo";
 
 export default function Home() {
   return (
@@ -54,31 +55,6 @@ function Header() {
         how teams collaborate with AI
       </p>
     </header>
-  );
-}
-
-function Logo() {
-  return (
-    <div className="relative inline-grid grid-cols-[max-content]">
-      <p
-        className="col-start-1 row-start-1 ml-[34px] text-[22px] leading-[0.9] tracking-[-0.88px] text-black"
-        style={{ fontFamily: "var(--font-dm-sans)" }}
-      >
-        jam
-      </p>
-      <div className="col-start-1 row-start-1 flex h-[21.2px] w-[31.3px] items-center justify-center">
-        <div className="-rotate-[11.02deg]">
-          <div className="flex items-center justify-center rounded-full bg-[var(--color-jam-blue)] px-1 py-[2px]">
-            <span
-              className="text-[14px] leading-[0.9] text-black"
-              style={{ fontFamily: "var(--font-dm-sans)" }}
-            >
-              lets
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 

@@ -5,7 +5,10 @@ import {
   linkRoomToSession,
   saveSession,
 } from "@/lib/sessions";
+import { createClient } from "@/lib/supabase/server";
 
+// Fallback name when there's no signed-in user (e.g. local testing before auth
+// is configured). Normally the host's name comes from their Google profile.
 const HOST_NAME = "Simon";
 
 export async function POST(req: Request) {
@@ -45,8 +48,19 @@ export async function POST(req: Request) {
     // Reverse index so the transcription webhook (which only knows roomName) finds us.
     await linkRoomToSession(roomName, id);
     // Auto-register the host as a participant so we skip the name prompt for them.
-    // TODO: when Google OAuth lands, replace HOST_NAME with the authed user's name.
-    const host = await addParticipant(id, HOST_NAME);
+    // Pull their name/color from the signed-in Google profile when available.
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const meta = user?.user_metadata ?? {};
+    const hostName =
+      (meta.display_name as string) ||
+      (meta.full_name as string) ||
+      (meta.name as string) ||
+      HOST_NAME;
+    const hostColor = meta.color as string | undefined;
+    const host = await addParticipant(id, hostName, hostColor);
     return NextResponse.json({ id, host });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

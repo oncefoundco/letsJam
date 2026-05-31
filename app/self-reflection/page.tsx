@@ -5,21 +5,21 @@ import {
   type Participant,
   type SessionSummary,
 } from "@/lib/sessions";
-import { ParticipantList } from "@/app/_components/ParticipantList";
+import { SessionSidebar } from "@/app/_components/SessionSidebar";
+import { Logo } from "@/app/_components/Logo";
+import {
+  ControlButton,
+  HeaderControls,
+  LinkIcon,
+  PauseIcon,
+  StatusPill,
+  VideoIcon,
+} from "@/app/_components/HeaderControls";
 import { ReflectionForm } from "./ReflectionForm";
 
 export const metadata = {
   title: "Self reflection — Jam",
 };
-
-const TIMELINE_STEPS = [
-  "Setup",
-  "Waiting Room",
-  "Self Reflection",
-  "Synthesize",
-  "Vote",
-  "The call",
-];
 
 const ACTIVE_STEP = 2;
 
@@ -54,65 +54,19 @@ function Header() {
       <Link href="/" className="inline-flex" aria-label="Jam home">
         <Logo />
       </Link>
-      <div className="flex flex-wrap items-center gap-2 md:gap-3">
-        <button
-          type="button"
-          aria-label="Toggle camera"
-          className="grid h-[46px] w-[46px] place-items-center rounded-full bg-[#f5f5f5] transition-colors hover:bg-neutral-200"
-        >
+      <HeaderControls>
+        <ControlButton aria-label="Toggle camera">
           <VideoIcon />
-        </button>
-        <button
-          type="button"
-          aria-label="Copy invite link"
-          className="grid h-[46px] w-[46px] place-items-center rounded-full bg-[#f5f5f5] transition-colors hover:bg-neutral-200"
-        >
+        </ControlButton>
+        <ControlButton aria-label="Copy invite link">
           <LinkIcon />
-        </button>
-        <div className="flex h-[46px] items-center gap-3 rounded-full bg-[#232323] px-4 sm:gap-6 sm:px-6">
-          <span
-            className="text-[13px] leading-none text-white sm:text-[15px]"
-            style={{ fontFamily: "var(--font-public-sans)" }}
-          >
-            4:24s remaining
-          </span>
-          <button
-            type="button"
-            aria-label="Pause"
-            className="flex items-center gap-2 text-[13px] leading-none text-white transition-opacity hover:opacity-80 sm:text-[15px]"
-            style={{ fontFamily: "var(--font-public-sans)" }}
-          >
-            <PauseIcon />
-            <span className="hidden sm:inline">Pause</span>
-          </button>
-        </div>
-      </div>
+        </ControlButton>
+        <ControlButton aria-label="Pause">
+          <PauseIcon />
+        </ControlButton>
+        <StatusPill>4:24s remaining</StatusPill>
+      </HeaderControls>
     </header>
-  );
-}
-
-function Logo() {
-  return (
-    <div className="relative inline-grid grid-cols-[max-content]">
-      <p
-        className="col-start-1 row-start-1 ml-[34px] text-[22px] leading-[0.9] tracking-[-0.88px] text-black"
-        style={{ fontFamily: "var(--font-dm-sans)" }}
-      >
-        jam
-      </p>
-      <div className="col-start-1 row-start-1 flex h-[21.2px] w-[31.3px] items-center justify-center">
-        <div className="-rotate-[11.02deg]">
-          <div className="flex items-center justify-center rounded-full bg-[var(--color-jam-blue)] px-1 py-[2px]">
-            <span
-              className="text-[14px] leading-[0.9] text-black"
-              style={{ fontFamily: "var(--font-dm-sans)" }}
-            >
-              lets
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -139,11 +93,14 @@ function Body({
         summary={summary}
         hostId={hostId}
       />
-      <Sidebar
-        sessionId={sessionId}
+      <SessionSidebar
+        activeStep={ACTIVE_STEP}
         topic={topic}
+        decisions={summary?.decisions}
         files={files}
+        sessionId={sessionId}
         participants={participants}
+        participantLabel="In the room"
       />
     </div>
   );
@@ -229,176 +186,3 @@ function SummarySnippets({ summary }: { summary?: SessionSummary }) {
   );
 }
 
-function Sidebar({
-  sessionId,
-  topic,
-  files,
-  participants,
-}: {
-  sessionId: string;
-  topic: string;
-  files: string[];
-  participants: Participant[];
-}) {
-  return (
-    <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
-      <SessionInfo topic={topic} />
-      <Timeline />
-      <ParticipantList
-        participants={participants}
-        sessionId={sessionId}
-        label="In the room"
-      />
-      <SessionContext files={files} />
-    </aside>
-  );
-}
-
-function SessionInfo({ topic }: { topic: string }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Session
-      </p>
-      <p
-        className="text-[24px] leading-[1.25] text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        {topic}
-      </p>
-    </div>
-  );
-}
-
-function Timeline() {
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Timeline
-      </p>
-      <ol className="flex flex-col">
-        {TIMELINE_STEPS.map((label, idx) => {
-          const active = idx === ACTIVE_STEP;
-          return (
-            <li
-              key={label}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                active ? "bg-[#f5f5f5]" : ""
-              }`}
-            >
-              <StepIndicator number={idx + 1} active={active} />
-              <span
-                className="text-[14px] leading-none text-[#1a1a1a]"
-                style={{ fontFamily: "var(--font-public-sans)" }}
-              >
-                {label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-function StepIndicator({
-  number,
-  active,
-}: {
-  number: number;
-  active?: boolean;
-}) {
-  return (
-    <span
-      className={`grid h-6 w-6 place-items-center rounded-full text-[10px] leading-none ${
-        active ? "bg-[#e85d3c] text-white" : "bg-[#f5f5f5] text-black"
-      }`}
-      style={{ fontFamily: "var(--font-public-sans)" }}
-    >
-      {number}
-    </span>
-  );
-}
-
-function SessionContext({ files }: { files: string[] }) {
-  if (files.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Session Context
-      </p>
-      <div className="flex flex-wrap gap-3">
-        {files.map((name, idx) => (
-          <ContextChip key={`${name}-${idx}`} name={name} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
-function ContextChip({ name }: { name: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-3 rounded-full bg-black/5 p-3 text-[14px] leading-none text-black"
-      style={{ fontFamily: "var(--font-public-sans)" }}
-    >
-      <DocIcon />
-      {name}
-    </span>
-  );
-}
-
-function VideoIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="2" y="6" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M16 10l5-3v10l-5-3v-4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function PauseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden>
-      <rect x="3" y="2" width="2.5" height="10" rx="0.6" />
-      <rect x="8.5" y="2" width="2.5" height="10" rx="0.6" />
-    </svg>
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M10 14a4 4 0 010-5.66l3-3a4 4 0 015.66 5.66l-1.5 1.5M14 10a4 4 0 010 5.66l-3 3a4 4 0 01-5.66-5.66l1.5-1.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function DocIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}

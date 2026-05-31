@@ -41,7 +41,7 @@ export function UploadContext({
       <button
         type="button"
         onClick={handlePickClick}
-        className="inline-flex items-center gap-3 rounded-full bg-[#f5f5f5] p-3 text-[14px] leading-none text-black transition-colors hover:bg-neutral-200"
+        className="inline-flex items-center gap-3 rounded-2xl bg-[#f5f5f5] p-[18px] text-[14px] leading-none text-black transition-colors hover:bg-neutral-200"
         style={{ fontFamily: "var(--font-public-sans)" }}
       >
         <PaperclipIcon />
@@ -61,7 +61,7 @@ export function UploadContext({
 function FileChip({ name, onRemove }: { name: string; onRemove: () => void }) {
   return (
     <span
-      className="inline-flex items-center gap-3 rounded-full bg-[#3c5bcb]/10 p-3 text-[14px] leading-none text-[#3c5bcb]"
+      className="inline-flex items-center gap-3 rounded-2xl bg-[#3c5bcb]/10 p-[18px] text-[14px] leading-none text-[#3c5bcb]"
       style={{ fontFamily: "var(--font-public-sans)" }}
     >
       <DocIcon />

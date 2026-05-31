@@ -5,22 +5,14 @@ import { VideoPreview } from "./VideoPreviewClient";
 import { InviteModal } from "./InviteModal";
 import { JoinModal } from "./JoinModal";
 import { MainCardActions } from "./MainCardActions";
-import { ParticipantList } from "@/app/_components/ParticipantList";
+import { SessionSidebar } from "@/app/_components/SessionSidebar";
+import { Logo } from "@/app/_components/Logo";
 
 export const metadata = {
   title: "Waiting room — Jam",
 };
 
-const TIMELINE_STEPS = [
-  "Setup",
-  "Waiting Room",
-  "Self Reflection",
-  "Synthesize",
-  "Vote",
-  "The call",
-];
-
-const ACTIVE_STEP = 1;
+const ACTIVE_STEP = 0;
 
 export default async function WaitingRoomPage({
   searchParams,
@@ -56,31 +48,6 @@ function Header() {
   );
 }
 
-function Logo() {
-  return (
-    <div className="relative inline-grid grid-cols-[max-content]">
-      <p
-        className="col-start-1 row-start-1 ml-[34px] text-[22px] leading-[0.9] tracking-[-0.88px] text-black"
-        style={{ fontFamily: "var(--font-dm-sans)" }}
-      >
-        jam
-      </p>
-      <div className="col-start-1 row-start-1 flex h-[21.2px] w-[31.3px] items-center justify-center">
-        <div className="-rotate-[11.02deg]">
-          <div className="flex items-center justify-center rounded-full bg-[var(--color-jam-blue)] px-1 py-[2px]">
-            <span
-              className="text-[14px] leading-[0.9] text-black"
-              style={{ fontFamily: "var(--font-dm-sans)" }}
-            >
-              lets
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Body({
   sessionId,
   topic,
@@ -95,11 +62,13 @@ function Body({
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
       <MainCard sessionId={sessionId} hostId={participants[0]?.id} />
-      <Sidebar
-        sessionId={sessionId}
+      <SessionSidebar
+        activeStep={ACTIVE_STEP}
         topic={topic}
         files={files}
+        sessionId={sessionId}
         participants={participants}
+        participantLabel="In the waiting room"
       />
     </div>
   );
@@ -158,142 +127,3 @@ function HowItWorks() {
   );
 }
 
-function Sidebar({
-  sessionId,
-  topic,
-  files,
-  participants,
-}: {
-  sessionId: string;
-  topic: string;
-  files: string[];
-  participants: Participant[];
-}) {
-  return (
-    <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
-      <div className="flex flex-col gap-4">
-        <p
-          className="text-[14px] font-medium leading-none text-black"
-          style={{ fontFamily: "var(--font-public-sans)" }}
-        >
-          Session
-        </p>
-        <p
-          className="text-[24px] leading-[1.25] text-black"
-          style={{ fontFamily: "var(--font-public-sans)" }}
-        >
-          {topic}
-        </p>
-      </div>
-
-      <Timeline />
-
-      <ParticipantList
-        participants={participants}
-        sessionId={sessionId}
-        label="In the waiting room"
-      />
-
-      <SessionContext files={files} />
-    </aside>
-  );
-}
-
-function Timeline() {
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Timeline
-      </p>
-      <ol className="flex flex-col">
-        {TIMELINE_STEPS.map((label, idx) => {
-          const active = idx === ACTIVE_STEP;
-          return (
-            <li
-              key={label}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                active ? "bg-[#f5f5f5]" : ""
-              }`}
-            >
-              <StepIndicator number={idx + 1} active={active} />
-              <span
-                className="text-[14px] leading-none text-[#1a1a1a]"
-                style={{ fontFamily: "var(--font-public-sans)" }}
-              >
-                {label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-function StepIndicator({
-  number,
-  active,
-}: {
-  number: number;
-  active?: boolean;
-}) {
-  return (
-    <span
-      className={`grid h-6 w-6 place-items-center rounded-full text-[10px] leading-none ${
-        active ? "bg-[#e85d3c] text-white" : "bg-[#f5f5f5] text-black"
-      }`}
-      style={{ fontFamily: "var(--font-public-sans)" }}
-    >
-      {number}
-    </span>
-  );
-}
-
-function SessionContext({ files }: { files: string[] }) {
-  if (files.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-4">
-      <p
-        className="text-[14px] font-medium leading-none text-black"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        Session Context
-      </p>
-      <div className="flex flex-wrap gap-3">
-        {files.map((name, idx) => (
-          <ContextChip key={`${name}-${idx}`} name={name} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
-function ContextChip({ name }: { name: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-3 rounded-full bg-black/5 p-3 text-[14px] leading-none text-black"
-      style={{ fontFamily: "var(--font-public-sans)" }}
-    >
-      <DocIcon />
-      {name}
-    </span>
-  );
-}
-
-function DocIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
