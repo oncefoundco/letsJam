@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addParticipant, getSession } from "@/lib/sessions";
+import { addParticipant, getSession, MAX_PARTICIPANTS } from "@/lib/sessions";
 
 // Lets the waiting room / session sidebar poll for new joiners so the
 // participant list updates live instead of only on a full page reload.
@@ -25,7 +25,7 @@ export async function POST(
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  let body: { name?: unknown; participantId?: unknown };
+  let body: { name?: unknown; participantId?: unknown; color?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -36,8 +36,10 @@ export async function POST(
   if (!name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
+  const color = typeof body.color === "string" ? body.color : undefined;
 
   // If the client already has a participantId for this session, dedupe.
+  // Returning here means existing members are never blocked by the cap.
   if (typeof body.participantId === "string") {
     const existing = session.participants.find(
       (p) => p.id === body.participantId
@@ -45,7 +47,15 @@ export async function POST(
     if (existing) return NextResponse.json(existing);
   }
 
-  const participant = await addParticipant(id, name);
+  // Cap the room. New joiners past the limit are turned away.
+  if (session.participants.length >= MAX_PARTICIPANTS) {
+    return NextResponse.json(
+      { error: `This jam is full (max ${MAX_PARTICIPANTS} people).` },
+      { status: 409 }
+    );
+  }
+
+  const participant = await addParticipant(id, name, color);
   if (!participant) {
     return NextResponse.json(
       { error: "Could not add participant" },

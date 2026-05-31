@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function JoinModal() {
   const router = useRouter();
@@ -49,10 +50,23 @@ export function JoinModal() {
       } catch {
         // ignore
       }
+      // Carry the signed-in user's chosen profile color so their avatar matches
+      // what they picked in setup. Guests (not signed in) fall back to the palette.
+      let color: string | undefined;
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const c = user?.user_metadata?.color;
+        if (typeof c === "string") color = c;
+      } catch {
+        // not signed in or auth unavailable — palette fallback is fine
+      }
       const res = await fetch(`/api/sessions/${sessionId}/participants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed, participantId: existingId }),
+        body: JSON.stringify({ name: trimmed, participantId: existingId, color }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };

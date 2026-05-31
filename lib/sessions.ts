@@ -6,6 +6,10 @@ import { AVATAR_COLORS } from "./avatar";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24;
 
+// Cap on how many people can be in a single jam, including the host. Enforced
+// on join (see the participants route). Kept small while we validate the format.
+export const MAX_PARTICIPANTS = 6;
+
 export type Participant = {
   id: string;
   name: string;
