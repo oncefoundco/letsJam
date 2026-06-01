@@ -97,11 +97,7 @@ function MainColumn({
 }) {
   return (
     <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col lg:min-h-0">
-      <WherebyRoom
-        roomUrl={roomUrl}
-        sessionId={sessionId}
-        leaveHref={`/self-reflection?session=${sessionId}`}
-      />
+      <WherebyRoom roomUrl={roomUrl} sessionId={sessionId} />
     </div>
   );
 }

@@ -7,22 +7,19 @@ import {
   GridVideoView,
 } from "@whereby.com/browser-sdk/react";
 import type { ClientView } from "@whereby.com/core";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { getInitials, colorForName } from "@/lib/avatar";
 
 export function WherebyRoom({
   roomUrl,
   sessionId,
-  leaveHref,
 }: {
   roomUrl: string;
   sessionId: string;
-  leaveHref: string;
 }) {
   return (
     <WherebyProvider>
-      <RoomInner roomUrl={roomUrl} sessionId={sessionId} leaveHref={leaveHref} />
+      <RoomInner roomUrl={roomUrl} sessionId={sessionId} />
     </WherebyProvider>
   );
 }
@@ -30,13 +27,10 @@ export function WherebyRoom({
 function RoomInner({
   roomUrl,
   sessionId,
-  leaveHref,
 }: {
   roomUrl: string;
   sessionId: string;
-  leaveHref: string;
 }) {
-  const router = useRouter();
   // The waiting room stores this participant's record (name + color) in
   // localStorage under participant.<sessionId>. Read the name so the SDK
   // shows real initials instead of the "Guest" → "G" fallback. Absent
@@ -72,26 +66,25 @@ function RoomInner({
     stopScreenshare,
   } = actions;
 
-  // Latest state in a ref so the unmount cleanup can release the
-  // local stream even if state changed between mount and unmount.
-  // Sync in an effect (after commit) rather than during render —
-  // writing a ref during render is a React anti-pattern (react-hooks/refs).
-  const stateRef = useRef(state);
+  // Remember the local MediaStream the moment the SDK hands it to us. We can't
+  // just read it at unmount: the SDK nulls localParticipant.stream when the room
+  // disconnects or the phase changes (navigating to /self-reflection), so by the
+  // time cleanup runs there's nothing to stop and the camera/mic device stays
+  // live — the macOS green dot never turns off. Holding the reference lets us
+  // hard-stop the exact tracks regardless of the SDK's later state.
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+    const s = state.localParticipant?.stream;
+    if (s) mediaStreamRef.current = s;
+  }, [state.localParticipant?.stream]);
 
-  // Hard-stop any local tracks the SDK is still holding. leaveRoom()
-  // disconnects the room but does NOT reliably release getUserMedia
-  // tracks acquired via localMediaOptions — the macOS green dot stays
-  // on otherwise.
+  // leaveRoom() disconnects the room but does NOT reliably release the
+  // getUserMedia tracks acquired via localMediaOptions, so we stop them here.
   function releaseLocalMedia() {
-    const s = stateRef.current.localParticipant?.stream;
+    const s = mediaStreamRef.current;
     if (s) {
-      for (const t of s.getTracks()) {
-        t.stop();
-        s.removeTrack(t);
-      }
+      for (const t of s.getTracks()) t.stop();
+      mediaStreamRef.current = null;
     }
   }
 
@@ -126,12 +119,6 @@ function RoomInner({
       toggleMicrophone(false);
     }
   }, [state.connectionStatus, toggleCamera, toggleMicrophone]);
-
-  function handleEnd() {
-    leaveRoom();
-    releaseLocalMedia();
-    router.push(leaveHref);
-  }
 
   const cameraOn = state.isCameraEnabled;
   const micOn = state.isMicrophoneEnabled;
@@ -171,7 +158,6 @@ function RoomInner({
           if (sharingScreen) stopScreenshare();
           else if (!screenshareBusy) startScreenshare();
         }}
-        onEnd={handleEnd}
       />
     </RoomShell>
   );
@@ -250,7 +236,6 @@ function ControlBar({
   onToggleCamera,
   onToggleMic,
   onToggleScreenshare,
-  onEnd,
 }: {
   cameraOn: boolean;
   micOn: boolean;
@@ -259,7 +244,6 @@ function ControlBar({
   onToggleCamera: () => void;
   onToggleMic: () => void;
   onToggleScreenshare: () => void;
-  onEnd: () => void;
 }) {
   return (
     <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-3">
@@ -290,14 +274,6 @@ function ControlBar({
         }`}
       >
         <ScreenshareIcon active={sharingScreen} />
-      </button>
-      <button
-        type="button"
-        aria-label="End session"
-        onClick={onEnd}
-        className="grid h-[52px] w-[52px] place-items-center rounded-full bg-[#e85d3c] text-white shadow-md transition-colors hover:bg-[#d44d2e]"
-      >
-        <EndIcon />
       </button>
     </div>
   );
@@ -474,20 +450,6 @@ function ScreenshareIcon({ active }: { active?: boolean }) {
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function EndIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 12c5.5-5 12.5-5 18 0v3l-4-1v-3a8 8 0 00-10 0v3l-4 1v-3z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-        transform="rotate(135 12 12)"
       />
     </svg>
   );
