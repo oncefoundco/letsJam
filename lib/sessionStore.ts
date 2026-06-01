@@ -191,6 +191,25 @@ export async function persistSession(s: StoredSession): Promise<void> {
   });
 }
 
+// Atomic single-row write for one participant's reflection in a round. Avoids
+// the lost-update race of read-modify-writing the whole session blob when two
+// people submit at the same time — two participants are two distinct rows.
+// Re-submitting replaces only that participant's own row.
+export async function insertReflection(
+  jamId: string,
+  round: number,
+  reflection: { participantId: string; text: string; passed: boolean }
+): Promise<void> {
+  await sql.begin(async (tx) => {
+    await tx`delete from reflections
+             where jam_id = ${jamId}
+               and participant_id = ${reflection.participantId}
+               and round = ${round}`;
+    await tx`insert into reflections (jam_id, participant_id, round, text, passed, submitted_at)
+             values (${jamId}, ${reflection.participantId}, ${round}, ${reflection.text}, ${reflection.passed}, ${new Date()})`;
+  });
+}
+
 // Reverse lookup for the Whereby webhook (replaces the Redis room:* index).
 export async function sessionIdByRoomName(roomName: string): Promise<string | null> {
   const rows = await sql<{ id: string }[]>`

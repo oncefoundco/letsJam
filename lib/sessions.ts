@@ -9,6 +9,7 @@ import {
   type JamOption,
 } from "./voting";
 import {
+  insertReflection,
   loadSession,
   persistSession,
   sessionIdByRoomName,
@@ -279,32 +280,24 @@ export async function stopPhaseTimer(
 }
 
 // Upsert a participant's reflection — re-submitting replaces the prior one.
+// Writes a single row to Postgres (the source of truth) and invalidates the
+// Redis cache, instead of read-modify-writing the whole session blob. This is
+// concurrency-safe: two people submitting at once write two distinct rows
+// rather than clobbering each other's copy of the session.
 export async function saveReflection(
   sessionId: string,
   reflection: { participantId: string; text: string; passed: boolean }
 ): Promise<boolean> {
   const session = await getSession(sessionId);
   if (!session) return false;
-  const participant = session.participants.find(
+  const known = session.participants.some(
     (p) => p.id === reflection.participantId
   );
-  const entry: Reflection = {
-    participantId: reflection.participantId,
-    name: participant?.name ?? "Someone",
-    text: reflection.text,
-    passed: reflection.passed,
-    submittedAt: Date.now(),
-  };
-  if (!session.reflections) session.reflections = [];
-  const existing = session.reflections.findIndex(
-    (r) => r.participantId === reflection.participantId
-  );
-  if (existing >= 0) {
-    session.reflections[existing] = entry;
-  } else {
-    session.reflections.push(entry);
-  }
-  await saveSession(session);
+  if (!known) return false;
+  await insertReflection(sessionId, currentRound(session), reflection);
+  // Drop the stale cache so the next read reloads from Postgres with every
+  // reflection present (including any submitted concurrently).
+  await kv.del(sessionKey(sessionId));
   return true;
 }
 

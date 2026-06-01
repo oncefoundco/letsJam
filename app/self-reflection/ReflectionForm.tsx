@@ -41,68 +41,58 @@ export function ReflectionForm({
 
   const isHost = !!meId && !!hostId && meId === hostId;
 
-  // On reload: if we already submitted for this round, drop straight into the gate.
+  const draftKey = `reflection-draft.${sessionId}`;
+
+  // Restore an unsubmitted draft after a reload so typed text isn't lost.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) setText((prev) => prev || saved);
+    } catch {
+      // ignore (private browsing / storage unavailable)
+    }
+  }, [draftKey]);
+
+  // Poll the reflection phase the whole time — while editing AND while gating.
+  // Advance the whole room to the vote when everyone has submitted OR options
+  // exist (the host hit "Start vote anyway"); otherwise keep the gate count
+  // fresh. Polling on the form view is what lets non-submitters follow a forced
+  // start instead of getting stranded.
   useEffect(() => {
     const pid = participantId();
-    if (!pid) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/sessions/${sessionId}/status`, {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          submitted: number;
-          total: number;
-          allSubmitted: boolean;
-          submittedIds: string[];
-        };
-        if (cancelled) return;
-        if (data.allSubmitted) {
-          router.push(onwardHref);
-          return;
-        }
-        if (data.submittedIds.includes(pid)) {
-          setGate({ submitted: data.submitted, total: data.total });
-        }
-      } catch {
-        // ignore — fall back to the form
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, participantId, router, onwardHref]);
-
-  // Poll while gating.
-  useEffect(() => {
-    if (!gate) return;
     let cancelled = false;
     const tick = async () => {
       try {
         const res = await fetch(`/api/sessions/${sessionId}/status`, {
           cache: "no-store",
         });
-        if (!res.ok) return;
+        if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
           submitted: number;
           total: number;
           allSubmitted: boolean;
+          optionsReady: boolean;
+          submittedIds: string[];
         };
         if (cancelled) return;
-        setGate({ submitted: data.submitted, total: data.total });
-        if (data.allSubmitted) router.push(onwardHref);
+        if (data.allSubmitted || data.optionsReady) {
+          router.push(onwardHref);
+          return;
+        }
+        if (pid && data.submittedIds.includes(pid)) {
+          setGate({ submitted: data.submitted, total: data.total });
+        }
       } catch {
         // ignore transient failures
       }
     };
+    tick();
     const handle = setInterval(tick, POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(handle);
     };
-  }, [gate, sessionId, router, onwardHref]);
+  }, [sessionId, participantId, router, onwardHref]);
 
   async function submit({ passed }: { passed: boolean }) {
     if (submitting) return;
@@ -127,6 +117,12 @@ export function ReflectionForm({
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? `Failed (${res.status})`);
       }
+      // Submitted — the draft has served its purpose.
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        // ignore
+      }
       const status = await fetch(`/api/sessions/${sessionId}/status`, {
         cache: "no-store",
       });
@@ -134,8 +130,9 @@ export function ReflectionForm({
         submitted: number;
         total: number;
         allSubmitted: boolean;
+        optionsReady: boolean;
       } | null;
-      if (data?.allSubmitted) {
+      if (data?.allSubmitted || data?.optionsReady) {
         router.push(onwardHref);
         return;
       }
@@ -198,7 +195,15 @@ export function ReflectionForm({
       <div className="flex h-[342px] flex-col justify-between rounded-2xl bg-[#f5f5f5] p-4">
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setText(value);
+            try {
+              localStorage.setItem(draftKey, value);
+            } catch {
+              // ignore (private browsing / storage full)
+            }
+          }}
           placeholder="What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces."
           className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none placeholder:text-[#7a7a7a]"
           style={{ fontFamily: "var(--font-public-sans)" }}

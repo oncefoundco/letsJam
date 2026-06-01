@@ -19,6 +19,10 @@ export async function GET(
     total,
     allSubmitted: total > 0 && reflections.length >= total,
     submittedIds: reflections.map((r) => r.participantId),
+    // Once options exist (everyone submitted, or the host forced "Start vote
+    // anyway"), every reflection client should advance to the vote — this is
+    // the shared signal that moves the whole room, not just the host.
+    optionsReady: (session.options?.length ?? 0) > 0,
     round: currentRound(session),
     startedAt: session.startedAt ?? null,
     timer: session.timer ?? null,
