@@ -35,13 +35,16 @@ function installMediaTracking() {
   md.__jamTrackingInstalled = true;
   const orig = md.getUserMedia.bind(md);
   md.getUserMedia = async (constraints?: MediaStreamConstraints) => {
+    if (suppressMediaAcquisition) {
+      // The room is tearing down (leave / unmount, where we set this flag before
+      // leaveRoom). Don't open ANY device: return an empty stream WITHOUT calling
+      // the real getUserMedia, so the camera/mic never power on during teardown.
+      // This is safe here precisely because the SDK is being destroyed — there's
+      // no later re-enable to corrupt (the reason we can't do this on join).
+      return new MediaStream();
+    }
     const stream = await orig(constraints);
     for (const track of stream.getTracks()) {
-      if (suppressMediaAcquisition) {
-        // Acquired during teardown — never let it keep the device alive.
-        track.stop();
-        continue;
-      }
       acquiredTracks.add(track);
       track.addEventListener("ended", () => acquiredTracks.delete(track), {
         once: true,
