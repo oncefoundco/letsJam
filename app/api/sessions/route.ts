@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import {
-  addParticipant,
+  createSession,
   createWherebyRoom,
   linkRoomToSession,
-  saveSession,
+  makeHostParticipant,
 } from "@/lib/sessions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,27 +32,15 @@ export async function POST(req: Request) {
     : [];
 
   try {
-    const { roomUrl, hostRoomUrl, roomName } = await createWherebyRoom();
-    const id = crypto.randomUUID();
-    await saveSession({
-      id,
-      topic,
-      files,
-      roomUrl,
-      hostRoomUrl,
-      roomName,
-      createdAt: Date.now(),
-      participants: [],
-      reflections: [],
-    });
-    // Reverse index so the transcription webhook (which only knows roomName) finds us.
-    await linkRoomToSession(roomName, id);
+    // Whereby room creation and the signed-in profile read are independent —
+    // run them concurrently rather than waterfalling.
+    const [{ roomUrl, hostRoomUrl, roomName }, user] = await Promise.all([
+      createWherebyRoom(),
+      createClient().then((supabase) => supabase.auth.getUser()).then((r) => r.data.user),
+    ]);
+
     // Auto-register the host as a participant so we skip the name prompt for them.
     // Pull their name/color from the signed-in Google profile when available.
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
     const meta = user?.user_metadata ?? {};
     const hostName =
       (meta.display_name as string) ||
@@ -60,7 +48,26 @@ export async function POST(req: Request) {
       (meta.name as string) ||
       HOST_NAME;
     const hostColor = meta.color as string | undefined;
-    const host = await addParticipant(id, hostName, hostColor);
+    const host = makeHostParticipant(hostName, hostColor);
+
+    const id = crypto.randomUUID();
+    // Persist the room with the host already in it (single-statement insert),
+    // and write the webhook reverse-index, concurrently — they're independent.
+    await Promise.all([
+      createSession({
+        id,
+        topic,
+        files,
+        roomUrl,
+        hostRoomUrl,
+        roomName,
+        createdAt: Date.now(),
+        participants: [host],
+        reflections: [],
+      }),
+      // Reverse index so the transcription webhook (which only knows roomName) finds us.
+      linkRoomToSession(roomName, id),
+    ]);
     return NextResponse.json({ id, host });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

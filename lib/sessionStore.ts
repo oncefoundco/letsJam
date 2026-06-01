@@ -191,6 +191,35 @@ export async function persistSession(s: StoredSession): Promise<void> {
   });
 }
 
+// Fast path for a brand-new room. A fresh jam has no child rows yet, so
+// persistSession's delete-everything-then-reinsert is pure overhead — and
+// through the transaction-mode pooler (which can't pipeline) every extra
+// statement is another ~190ms round-trip. This does the whole insert (jam +
+// host + any attached files) in a single statement / single round-trip via
+// data-modifying CTEs. Mirrors the jams/jam_participants/jam_files columns in
+// persistSession — keep them in sync if the schema changes.
+export async function insertNewSession(s: StoredSession): Promise<void> {
+  const createdAt = new Date(s.createdAt);
+  const expiresAt = new Date(s.createdAt + SESSION_TTL_SECONDS * 1000);
+  const [host] = s.participants;
+  if (!host) throw new Error("insertNewSession requires a host participant");
+  const files = s.files ?? [];
+  await sql`
+    with j as (
+      insert into jams (id, title, status, whereby_room_url, whereby_host_room_url,
+                        whereby_room_name, current_round, created_at, expires_at)
+      values (${s.id}, ${s.topic}, ${jamStatus(s)}, ${s.roomUrl}, ${s.hostRoomUrl},
+              ${s.roomName.replace(/^\/+|\/+$/g, "")}, ${s.round ?? 1}, ${createdAt}, ${expiresAt})
+      returning id
+    ),
+    p as (
+      insert into jam_participants (id, jam_id, name, color, is_host, joined_at)
+      select ${host.id}, j.id, ${host.name}, ${host.bg}, true, ${new Date(host.joinedAt)} from j
+    )
+    insert into jam_files (jam_id, name)
+    select j.id, f from j, unnest(${files}::text[]) as f`;
+}
+
 // Atomic single-row write for one participant's reflection in a round. Avoids
 // the lost-update race of read-modify-writing the whole session blob when two
 // people submit at the same time — two participants are two distinct rows.

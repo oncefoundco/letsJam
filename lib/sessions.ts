@@ -9,6 +9,7 @@ import {
   type JamOption,
 } from "./voting";
 import {
+  insertNewSession,
   insertReflection,
   loadSession,
   persistSession,
@@ -145,6 +146,22 @@ export async function saveSession(session: StoredSession): Promise<void> {
   await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
 }
 
+// Fast path for a brand-new room: a single-statement insert (see
+// insertNewSession) instead of the general delete-and-reinsert persistSession,
+// then prime the cache. Use only when the session is known not to exist yet.
+export async function createSession(session: StoredSession): Promise<void> {
+  await insertNewSession(session);
+  await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
+}
+
+// Write only the Redis cache, skipping persistSession. For state that lives
+// solely in the session blob with no Postgres columns yet — dot votes (and the
+// phase timer). persistSession would spend ~4s rewriting every child table on
+// the Sydney pooler without even storing this data, so it's pure overhead here.
+async function cacheSession(session: StoredSession): Promise<void> {
+  await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
+}
+
 export async function getSession(
   id: string
 ): Promise<StoredSession | undefined> {
@@ -155,6 +172,20 @@ export async function getSession(
   if (!session) return undefined;
   await kv.set(sessionKey(id), session, { ex: SESSION_TTL_SECONDS });
   return session;
+}
+
+// Build the host participant for a brand-new room. Equivalent to addParticipant
+// on an empty session, but pure (no IO) so the create path can persist the host
+// in the same write as the room itself — saving a full read-modify-write round
+// trip to Postgres + Redis. On an empty room the color logic is trivial: honor
+// the requested color, else take the first palette color.
+export function makeHostParticipant(name: string, color?: string): Participant {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    bg: color || AVATAR_COLORS[0],
+    joinedAt: Date.now(),
+  };
 }
 
 // Read-modify-write. Concurrent joins (sub-second) could lose a participant; acceptable
@@ -483,7 +514,9 @@ export async function setDotAllocation(
   for (const a of valid) {
     session.dotVotes.push({ participantId, optionId: a.optionId, dots: a.dots, round });
   }
-  await saveSession(session);
+  // Dot votes are Redis-only — no Postgres columns — so cache-only is both
+  // faster (~0.3s vs ~4s) and complete; persistSession wouldn't store them.
+  await cacheSession(session);
   return "ok";
 }
 

@@ -31,6 +31,7 @@ export function DotVotePanel({
 }) {
   const router = useRouter();
   const [meId, setMeId] = useState<string | null>(null);
+  const [meColor, setMeColor] = useState<string | null>(null);
   const [alloc, setAlloc] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<DotStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,10 +45,14 @@ export function DotVotePanel({
   useEffect(() => {
     try {
       const stored = localStorage.getItem(`participant.${sessionId}`);
-      const parsed = stored ? (JSON.parse(stored) as { id?: string }) : null;
+      const parsed = stored
+        ? (JSON.parse(stored) as { id?: string; bg?: string })
+        : null;
       setMeId(typeof parsed?.id === "string" ? parsed.id : null);
+      setMeColor(typeof parsed?.bg === "string" ? parsed.bg : null);
     } catch {
       setMeId(null);
+      setMeColor(null);
     }
   }, [sessionId]);
 
@@ -187,20 +192,34 @@ export function DotVotePanel({
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
-          <OptionCard
-            key={card.id}
-            title={card.title}
-            body={card.body}
-            attribution={card.attribution}
-            refine={card.refine}
-            dots={status?.dotsByOption?.[card.id] ?? []}
-            mine={alloc[card.id] ?? 0}
-            canAdd={left > 0}
-            onAdd={() => bump(card.id, 1)}
-            onRemove={() => bump(card.id, -1)}
-          />
-        ))}
+        {cards.map((card) => {
+          // Show my own dots optimistically the instant I click, instead of
+          // waiting for the POST + refresh round-trip. Others' dots come from
+          // the server; my dots are rendered from local `alloc` in my color.
+          // Avatar colors are distinct per participant, so dropping my color
+          // from the server list and re-adding my local count can't double up.
+          const serverDots = status?.dotsByOption?.[card.id] ?? [];
+          const others = meColor
+            ? serverDots.filter((c) => c !== meColor)
+            : serverDots;
+          const myDots = Array<string>(alloc[card.id] ?? 0).fill(
+            meColor ?? "#62a1f1"
+          );
+          return (
+            <OptionCard
+              key={card.id}
+              title={card.title}
+              body={card.body}
+              attribution={card.attribution}
+              refine={card.refine}
+              dots={[...others, ...myDots]}
+              mine={alloc[card.id] ?? 0}
+              canAdd={left > 0}
+              onAdd={() => bump(card.id, 1)}
+              onRemove={() => bump(card.id, -1)}
+            />
+          );
+        })}
       </div>
 
       <DotsLeft left={left} total={dotsTotal} />
