@@ -239,6 +239,47 @@ export async function insertReflection(
   });
 }
 
+// Atomically add one participant — a single INSERT, so concurrent joins can't
+// clobber each other the way a read-whole-session / rewrite-whole-session does.
+// Caller invalidates the Redis cache afterward so the next read reloads the
+// full roster from Postgres.
+export async function insertParticipant(
+  jamId: string,
+  p: Participant,
+  isHost: boolean
+): Promise<void> {
+  await sql`insert into jam_participants (id, jam_id, name, color, is_host, joined_at)
+            values (${p.id}, ${jamId}, ${p.name}, ${p.bg}, ${isHost}, ${new Date(p.joinedAt)})
+            on conflict (id) do nothing`;
+}
+
+// Atomically upsert one participant's vote for a round (same shape as
+// insertReflection — one row per participant per round).
+export async function insertVote(
+  jamId: string,
+  round: number,
+  vote: { participantId: string; choice: VoteChoice; reason?: string }
+): Promise<void> {
+  await sql.begin(async (tx) => {
+    await tx`delete from votes
+             where jam_id = ${jamId}
+               and participant_id = ${vote.participantId}
+               and round = ${round}`;
+    await tx`insert into votes (jam_id, participant_id, round, choice, reason, voted_at)
+             values (${jamId}, ${vote.participantId}, ${round}, ${vote.choice}, ${vote.reason ?? null}, ${new Date()})`;
+  });
+}
+
+// Idempotently stamp the room as started (first writer wins), atomically.
+// Returns the canonical startedAt in epoch ms.
+export async function setStartedAt(jamId: string): Promise<number | null> {
+  const rows = await sql<{ started_at: Date | null }[]>`
+    update jams set started_at = coalesce(started_at, now()), status = 'active'
+     where id = ${jamId}
+    returning started_at`;
+  return rows[0] ? ms(rows[0].started_at) ?? null : null;
+}
+
 // Reverse lookup for the Whereby webhook (replaces the Redis room:* index).
 export async function sessionIdByRoomName(roomName: string): Promise<string | null> {
   const rows = await sql<{ id: string }[]>`

@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { kv } from "@vercel/kv";
 import { AVATAR_COLORS } from "./avatar";
 import { DEFAULT_PHASE_MS, type PhaseTimer, type TimerPhase } from "./timer";
@@ -10,10 +11,13 @@ import {
 } from "./voting";
 import {
   insertNewSession,
+  insertParticipant,
   insertReflection,
+  insertVote,
   loadSession,
   persistSession,
   sessionIdByRoomName,
+  setStartedAt,
 } from "./sessionStore";
 
 // Sessions live in Upstash Redis (via @vercel/kv).
@@ -142,8 +146,29 @@ export async function getSessionIdByRoomName(
 // cache. If the Postgres write fails we surface the error rather than leaving
 // the cache ahead of the source of truth.
 export async function saveSession(session: StoredSession): Promise<void> {
-  await persistSession(session);
+  // Redis is the read source of truth — write it synchronously so the response
+  // and the next read reflect the change immediately.
   await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
+  // Durably persist to Postgres in the background. persistSession is ~20
+  // sequential round-trips to the Sydney pooler (~5s); awaiting it made every
+  // state-changing click block that long. Redis stays authoritative for reads,
+  // so a brief Postgres lag is harmless for these ephemeral jams.
+  schedulePersist(session);
+}
+
+// Run persistSession after the response so the click returns at Redis speed.
+// after() keeps the serverless function alive until it finishes; outside a
+// request scope (scripts/tests) we just run it detached.
+function schedulePersist(session: StoredSession): void {
+  const run = () =>
+    persistSession(session).catch((err) => {
+      console.error(`Background persistSession failed for ${session.id}:`, err);
+    });
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
 }
 
 // Fast path for a brand-new room: a single-statement insert (see
@@ -188,10 +213,11 @@ export function makeHostParticipant(name: string, color?: string): Participant {
   };
 }
 
-// Read-modify-write. Concurrent joins (sub-second) could lose a participant; acceptable
-// for now since join rate is low. Move to RPUSH on a separate participants list if it bites.
 // `color` lets a signed-in user carry their chosen profile color; otherwise we
-// fall back to the rotating palette so guests still get distinct avatars.
+// fall back to the rotating palette so guests still get distinct avatars. The
+// color/cap checks read the cached roster (best-effort — a near-simultaneous
+// join could still pick a dup color), but the write itself is a single atomic
+// INSERT so concurrent joins never clobber each other out of the session.
 export async function addParticipant(
   sessionId: string,
   name: string,
@@ -214,8 +240,11 @@ export async function addParticipant(
     bg,
     joinedAt: Date.now(),
   };
-  session.participants.push(participant);
-  await saveSession(session);
+  // The host is inserted at room creation, so anyone arriving here is a guest.
+  // Atomic INSERT + cache drop (mirrors saveReflection): the next read rebuilds
+  // the full roster from Postgres, so concurrent joins all survive.
+  await insertParticipant(sessionId, participant, false);
+  await kv.del(sessionKey(sessionId));
   return participant;
 }
 
@@ -348,11 +377,12 @@ export async function startSession(
   if (!host || host.id !== hostParticipantId) {
     return { ok: false, reason: "not-host" };
   }
-  if (!session.startedAt) {
-    session.startedAt = Date.now();
-    await saveSession(session);
-  }
-  return { ok: true, startedAt: session.startedAt };
+  // Atomic, idempotent stamp (coalesce keeps the first writer's time) + cache
+  // drop, so a concurrent join/vote can't roll the start back by saving a stale
+  // blob. The next read reloads startedAt from Postgres.
+  const startedAt = (await setStartedAt(sessionId)) ?? session.startedAt ?? Date.now();
+  await kv.del(sessionKey(sessionId));
+  return { ok: true, startedAt };
 }
 
 export type Tally = { A: number; B: number; refine: number };
@@ -383,24 +413,14 @@ export async function recordVote(
   );
   if (!participant) return "unknown-participant";
   const round = currentRound(session);
-  const entry: Vote = {
+  // Atomic upsert + cache drop (like saveReflection) so concurrent votes don't
+  // clobber each other; the next read reloads all votes from Postgres.
+  await insertVote(sessionId, round, {
     participantId: vote.participantId,
-    name: participant.name,
     choice: vote.choice,
     reason: vote.reason?.trim() || undefined,
-    round,
-    votedAt: Date.now(),
-  };
-  if (!session.votes) session.votes = [];
-  const existing = session.votes.findIndex(
-    (v) => v.participantId === vote.participantId && v.round === round
-  );
-  if (existing >= 0) {
-    session.votes[existing] = entry;
-  } else {
-    session.votes.push(entry);
-  }
-  await saveSession(session);
+  });
+  await kv.del(sessionKey(sessionId));
   return "ok";
 }
 
