@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { ClockIcon } from "@heroicons/react/24/outline";
 import { getSession } from "@/lib/sessions";
+import { createClient } from "@/lib/supabase/server";
 import { WherebyRoom } from "./WherebyRoomClient";
+import { JoinGate } from "@/app/waiting-room/JoinGate";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { SessionTimerControls } from "@/app/_components/SessionTimerControls";
 import { Logo } from "@/app/_components/Logo";
@@ -24,6 +27,24 @@ export default async function SessionPage({
   if (!sessionId) notFound();
   const session = await getSession(sessionId);
   if (!session) notFound();
+
+  // Late joiners who land straight on the call (meeting already started) must
+  // sign in and set their name + color, same as the waiting-room gate. Existing
+  // participants have a localStorage record, so the gate stays out of their way.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const meta = user?.user_metadata ?? {};
+  const authed = Boolean(user);
+  const initialName =
+    (meta.display_name as string) ||
+    (meta.full_name as string) ||
+    (meta.name as string) ||
+    "";
+  const initialColor =
+    typeof meta.color === "string" ? (meta.color as string) : undefined;
+
   return (
     <div className="flex min-h-screen flex-col gap-6 bg-background p-6 md:gap-8 md:p-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -53,6 +74,16 @@ export default async function SessionPage({
           participantLabel="In the room"
         />
       </div>
+      <Suspense fallback={null}>
+        <JoinGate
+          sessionId={session.id}
+          authed={authed}
+          initialName={initialName}
+          initialColor={initialColor}
+          loginNext={`/session?session=${session.id}`}
+          redirectToSessionWhenStarted={false}
+        />
+      </Suspense>
     </div>
   );
 }

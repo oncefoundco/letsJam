@@ -153,18 +153,19 @@ export function DotVotePanel({
 
   const bump = useCallback(
     (optionId: string, delta: number) => {
-      setAlloc((prev) => {
-        const current = prev[optionId] ?? 0;
-        const usedNow = Object.values(prev).reduce((s, n) => s + n, 0);
-        if (delta > 0 && usedNow >= dotsTotal) return prev;
-        const nextVal = Math.max(0, current + delta);
-        const next = { ...prev, [optionId]: nextVal };
-        if (nextVal === 0) delete next[optionId];
-        persist(next);
-        return next;
-      });
+      const current = alloc[optionId] ?? 0;
+      if (delta > 0 && used >= dotsTotal) return;
+      const nextVal = Math.max(0, current + delta);
+      if (nextVal === current) return;
+      const next = { ...alloc };
+      if (nextVal === 0) delete next[optionId];
+      else next[optionId] = nextVal;
+      // Pure update + side-effect kept out of the setState updater (which can
+      // run twice in dev StrictMode and would double-POST).
+      setAlloc(next);
+      persist(next);
     },
-    [dotsTotal, persist]
+    [alloc, used, dotsTotal, persist]
   );
 
   const cards: { id: string; title: string; body?: string; attribution?: string; refine?: boolean }[] = [

@@ -13,11 +13,19 @@ export function JoinGate({
   authed,
   initialName,
   initialColor,
+  loginNext,
+  redirectToSessionWhenStarted = true,
 }: {
   sessionId: string;
   authed: boolean;
   initialName?: string;
   initialColor?: string;
+  // Where Google sign-in returns. Defaults to the waiting room; the session
+  // page passes its own URL so late joiners come back to the call.
+  loginNext?: string;
+  // Waiting room: once joined, jump to /session if the host already started.
+  // On the session page itself we're already there, so this is off.
+  redirectToSessionWhenStarted?: boolean;
 }) {
   const router = useRouter();
   // null = still checking localStorage; true = already a participant in this jam.
@@ -68,7 +76,7 @@ export function JoinGate({
 
   // Auth is required, so show the login gate immediately (no localStorage needed).
   if (!authed) {
-    return <LoginModal next={`/waiting-room?session=${sessionId}`} />;
+    return <LoginModal next={loginNext ?? `/waiting-room?session=${sessionId}`} />;
   }
 
   // Signed in: wait for the localStorage check, and stay out of the way if
@@ -121,20 +129,23 @@ export function JoinGate({
         window.dispatchEvent(new Event("jam:participant-changed"));
 
         // If the host already started while they were signing in, drop them
-        // straight into /session — skipping the countdown they missed.
-        try {
-          const sr = await fetch(`/api/sessions/${sessionId}/status`, {
-            cache: "no-store",
-          });
-          if (sr.ok) {
-            const data = (await sr.json()) as { startedAt?: number | null };
-            if (data.startedAt) {
-              router.push(`/session?session=${sessionId}`);
-              return;
+        // straight into /session — skipping the countdown they missed. (On the
+        // session page we're already there, so this is skipped.)
+        if (redirectToSessionWhenStarted) {
+          try {
+            const sr = await fetch(`/api/sessions/${sessionId}/status`, {
+              cache: "no-store",
+            });
+            if (sr.ok) {
+              const data = (await sr.json()) as { startedAt?: number | null };
+              if (data.startedAt) {
+                router.push(`/session?session=${sessionId}`);
+                return;
+              }
             }
+          } catch {
+            // network blip; fall through to the waiting room
           }
-        } catch {
-          // network blip; fall through to waiting room
         }
 
         setJoined(true);
