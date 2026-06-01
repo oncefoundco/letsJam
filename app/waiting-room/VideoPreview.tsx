@@ -51,9 +51,10 @@ export function VideoPreview() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       videoStreamRef.current = stream;
-      if (videoElRef.current) {
-        videoElRef.current.srcObject = stream;
-      }
+      // Don't attach to the <video> here: it's still display:none (cameraOn is
+      // false until the re-render). Attaching + playing a live camera track on a
+      // hidden element is unreliable on macOS — the OS camera goes live (light
+      // on) but no frames render. The effect below attaches once it's visible.
       setCameraOn(true);
       sessionStorage.setItem("jam:camera", "on");
     } catch (err) {
@@ -86,6 +87,22 @@ export function VideoPreview() {
       );
     }
   }, [micOn, stopAudio]);
+
+  // Attach the live stream and start playback only once the <video> is in the
+  // tree and visible. Runs on every enable (cameraOn false -> true), which fixes
+  // the toggle-off-then-on case: the `autoplay` attribute only fires on the very
+  // first source attach, so a re-acquired stream needs an explicit play() or the
+  // camera stays live (light on) while the element renders no frames.
+  useEffect(() => {
+    if (!cameraOn) return;
+    const el = videoElRef.current;
+    const stream = videoStreamRef.current;
+    if (!el || !stream) return;
+    if (el.srcObject !== stream) {
+      el.srcObject = stream;
+    }
+    void el.play().catch(() => {});
+  }, [cameraOn]);
 
   // Hard release of every track we own when the component leaves the tree.
   useEffect(() => {

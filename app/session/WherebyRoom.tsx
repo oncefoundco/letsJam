@@ -10,6 +10,79 @@ import type { ClientView } from "@whereby.com/core";
 import { useEffect, useMemo, useRef } from "react";
 import { getInitials, colorForName } from "@/lib/avatar";
 
+// --- Bulletproof device release -------------------------------------------
+// The Whereby SDK acquires camera/mic tracks via getUserMedia internally and,
+// in certain toggle/reconnect windows, leaves a LIVE video track detached from
+// localParticipant.stream. Nothing in the SDK (or any code reading
+// localParticipant.stream) then holds a reference to it, so it never gets
+// stopped and the macOS camera light stays on indefinitely.
+//
+// The only reliable defence is to keep a reference to every track the camera
+// ever produces and stop them ourselves. We patch getUserMedia ONCE and record
+// every track it hands out. While a room is tearing down we hard-stop tracks
+// the moment they're acquired, so a late re-acquire during cleanup can't keep
+// the device alive either. Tracks remove themselves from the registry when they
+// end, so this never grows unbounded.
+const acquiredTracks = new Set<MediaStreamTrack>();
+let suppressMediaAcquisition = false;
+// Whether the local camera is actually wanted right now. The SDK briefly flips
+// cameraEnabled true on join (it dispatches doToggleCamera on any change), which
+// fires a video getUserMedia even when the user joined with the camera off —
+// flashing the macOS green light. We set this flag synchronously (before the SDK
+// acquires: at join, and in the camera button handler) so the patch can stop any
+// camera track the instant it's acquired while the camera isn't wanted. Setting
+// it in the click handler — not via React state — keeps it race-free with the
+// SDK's own re-acquire.
+let cameraDesired = false;
+
+function installMediaTracking() {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
+  const md = navigator.mediaDevices as MediaDevices & {
+    __jamTrackingInstalled?: boolean;
+  };
+  if (md.__jamTrackingInstalled) return;
+  md.__jamTrackingInstalled = true;
+  const orig = md.getUserMedia.bind(md);
+  md.getUserMedia = async (constraints?: MediaStreamConstraints) => {
+    const stream = await orig(constraints);
+    for (const track of stream.getTracks()) {
+      if (suppressMediaAcquisition) {
+        // Acquired during teardown — never let it keep the device alive.
+        track.stop();
+        continue;
+      }
+      if (track.kind === "video" && !cameraDesired) {
+        // The camera isn't wanted (e.g. the SDK's spurious enable on join). Stop
+        // it immediately so the green light never lingers. We don't track it; the
+        // off-camera reconciler removes the dead track from the stream so the SDK
+        // re-acquires cleanly on the next real enable.
+        track.stop();
+        continue;
+      }
+      acquiredTracks.add(track);
+      track.addEventListener("ended", () => acquiredTracks.delete(track), {
+        once: true,
+      });
+    }
+    return stream;
+  };
+}
+
+// Stop every tracked track (optionally only one kind) and forget them.
+function stopTrackedTracks(kind?: "video" | "audio") {
+  for (const track of [...acquiredTracks]) {
+    if (kind && track.kind !== kind) continue;
+    track.stop();
+    acquiredTracks.delete(track);
+  }
+}
+
+// Install at module load so the patch is in place before the SDK acquires any
+// media (this module is client-only via WherebyRoomClient; the guard inside
+// no-ops under SSR).
+installMediaTracking();
+// ---------------------------------------------------------------------------
+
 export function WherebyRoom({
   roomUrl,
   sessionId,
@@ -48,13 +121,28 @@ function RoomInner({
       return undefined;
     }
   }, [sessionId]);
-  // SDK's toggleCamera/toggleMicrophone only flip enabled state on
-  // already-acquired tracks; they do NOT call getUserMedia. Joining with
-  // { audio: false, video: false } left the toggles dead. Acquire on mount
-  // (the user reaches /session deliberately via the waiting room) and rely
-  // on releaseLocalMedia() below to clear the macOS green dot on leave.
+  // Only open the camera on join if the user actually wanted it on in the
+  // waiting room. Otherwise the SDK's localMediaOptions would acquire the
+  // camera regardless, flashing the macOS green light for a moment before our
+  // camera-off sweep stops it — alarming and unnecessary for someone who joined
+  // with video off. Camera-off users join video-less; toggling on in-call works
+  // because the SDK's doToggleCamera re-acquires the device on enable.
+  //
+  // We still request audio unconditionally: it anchors a live local stream so
+  // both toggles function (the SDK can't re-acquire a stream once all tracks
+  // are gone — getUserMedia({audio:false,video:false}) throws), and the mic's
+  // toggle only flips `enabled` rather than re-acquiring, so the device must
+  // exist up front. Mic-off users get the track immediately disabled by the
+  // prefs effect below.
+  const cameraWanted = useMemo(() => {
+    try {
+      return sessionStorage.getItem("jam:camera") === "on";
+    } catch {
+      return false;
+    }
+  }, []);
   const { state, actions } = useRoomConnection(roomUrl, {
-    localMediaOptions: { audio: true, video: true },
+    localMediaOptions: { audio: true, video: cameraWanted },
     displayName,
   });
   const {
@@ -78,6 +166,54 @@ function RoomInner({
     if (s) mediaStreamRef.current = s;
   }, [state.localParticipant?.stream]);
 
+  // While the camera is off, NO video device may be live. We reconcile
+  // continuously (not a one-shot sweep): the SDK can acquire a video track on
+  // join even with video disabled, and late getUserMedia calls resolve after a
+  // single sweep would have run. So while the camera reads off, repeatedly stop
+  // every live video track we captured.
+  //
+  // CRITICAL: we must also remove the stopped track from the local MediaStream,
+  // mirroring the SDK's own toggle-off (which does stream.removeTrack). If we
+  // only stop() it, the dead track stays in the stream, and the SDK's
+  // doToggleCamera on the next ENABLE sees a track present and merely sets
+  // track.enabled=true on it — re-enabling a DEAD track renders black/no video
+  // instead of re-acquiring the camera. Removing it forces a clean re-acquire.
+  //
+  // Turning the camera back ON flips isCameraEnabled true first (the reducer runs
+  // before the SDK re-acquires), which exits this effect, so we never touch a
+  // track the user just turned on.
+  useEffect(() => {
+    if (state.isCameraEnabled) return;
+    const releaseOffVideo = () => {
+      const streams = [
+        mediaStreamRef.current,
+        state.localParticipant?.stream,
+      ].filter((s): s is MediaStream => !!s);
+      // Stop every camera track we captured.
+      for (const track of [...acquiredTracks]) {
+        if (track.kind !== "video") continue;
+        track.stop();
+        acquiredTracks.delete(track);
+      }
+      // Remove ALL video tracks (live OR already-ended) from the local stream.
+      // The SDK can attach a track to localParticipant.stream AFTER we've stopped
+      // and forgotten it, so we can't rely on the registry alone. A dead track
+      // left in the stream (a) makes the grid render a black video tile and
+      // (b) makes doToggleCamera re-enable a dead track on the next ON instead of
+      // re-acquiring. Clearing them forces a clean re-acquire and lets the avatar
+      // show.
+      for (const s of streams) {
+        for (const t of s.getVideoTracks()) {
+          t.stop();
+          s.removeTrack(t);
+        }
+      }
+    };
+    releaseOffVideo();
+    const id = setInterval(releaseOffVideo, 1000);
+    return () => clearInterval(id);
+  }, [state.isCameraEnabled, state.localParticipant?.stream]);
+
   // leaveRoom() disconnects the room but does NOT reliably release the
   // getUserMedia tracks acquired via localMediaOptions, so we stop them here.
   function releaseLocalMedia() {
@@ -89,10 +225,23 @@ function RoomInner({
   }
 
   useEffect(() => {
+    // Re-arm tracking in case a previous room's teardown left it suppressed.
+    suppressMediaAcquisition = false;
+    // The camera is only wanted on join if the user opted in upstream. Set this
+    // BEFORE joinRoom so the SDK's spurious camera-enable on join is stopped at
+    // the acquisition boundary (no green flash).
+    cameraDesired = cameraWanted;
     joinRoom();
     return () => {
+      // Block any media the SDK re-grabs while tearing down, then release
+      // everything: leaveRoom() for the SDK's own cleanup, releaseLocalMedia()
+      // for the stream we captured, and stopTrackedTracks() as the backstop
+      // that kills orphaned tracks the SDK lost track of.
+      suppressMediaAcquisition = true;
+      cameraDesired = false;
       leaveRoom();
       releaseLocalMedia();
+      stopTrackedTracks();
     };
     // SDK requires once-on-mount; actions are recreated each render.
     // Note: in dev (Strict Mode) you may see a "Did not find client for update"
@@ -100,25 +249,27 @@ function RoomInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Carry over the user's camera/mic state from the waiting room. The
-  // waiting-room preview starts both devices off and only writes to
-  // sessionStorage when the user toggles, so "no entry" means the user
-  // never opted in — match the waiting-room default and start the session
-  // muted. The toggles in-call still work because we already acquired
-  // media on join. The SDK's toggle reducers are no-ops until
-  // connectionStatus reaches "connected", so we wait for that.
-  const prefsAppliedRef = useRef(false);
+  // Carry over the user's mic preference from the waiting room. The camera no
+  // longer needs handling here — its initial state is set correctly by
+  // localMediaOptions.video above (camera-off users join video-less). We only
+  // mute the mic when the user didn't opt in.
+  //
+  // We mute by toggling OFF, but ONLY once the mic actually reads as enabled.
+  // The SDK's toggle listener computes `enabled || !isCurrentlyEnabled`
+  // (index.cjs:3499), so toggleMicrophone(false) while the mic is already off
+  // evaluates to `true` and turns it back ON. Waiting for isMicrophoneEnabled
+  // (the mic is acquired enabled on join via audio:true) avoids that, and means
+  // a slow device-start can't make us mark the preference applied prematurely.
+  const micPrefAppliedRef = useRef(false);
   useEffect(() => {
-    if (prefsAppliedRef.current) return;
+    if (micPrefAppliedRef.current) return;
     if (state.connectionStatus !== "connected") return;
-    prefsAppliedRef.current = true;
-    if (sessionStorage.getItem("jam:camera") !== "on") {
-      toggleCamera(false);
-    }
+    if (!state.isMicrophoneEnabled) return; // not ready — retry on next change
+    micPrefAppliedRef.current = true;
     if (sessionStorage.getItem("jam:mic") !== "on") {
       toggleMicrophone(false);
     }
-  }, [state.connectionStatus, toggleCamera, toggleMicrophone]);
+  }, [state.connectionStatus, state.isMicrophoneEnabled, toggleMicrophone]);
 
   const cameraOn = state.isCameraEnabled;
   const micOn = state.isMicrophoneEnabled;
@@ -152,7 +303,13 @@ function RoomInner({
         micOn={micOn}
         sharingScreen={sharingScreen}
         screenshareBusy={screenshareBusy}
-        onToggleCamera={() => toggleCamera(!cameraOn)}
+        onToggleCamera={() => {
+          const next = !cameraOn;
+          // Set synchronously BEFORE toggleCamera so the patch lets the user's
+          // own enable through (and blocks anything while it's meant to be off).
+          cameraDesired = next;
+          toggleCamera(next);
+        }}
         onToggleMic={() => toggleMicrophone(!micOn)}
         onToggleScreenshare={() => {
           if (sharingScreen) stopScreenshare();
@@ -169,9 +326,15 @@ function RoomInner({
 // render our own initials avatar, colored deterministically from the name so
 // participants are distinguishable — two people sharing an initial still differ.
 function renderParticipant({ participant }: { participant: ClientView }) {
-  const hasVideo =
-    participant.isPresentation ||
-    (!!participant.isVideoEnabled && !!participant.stream);
+  // Render the video view only when there's an actually LIVE video track. The
+  // SDK can keep isVideoEnabled=true with a dead/removed track — e.g. the camera
+  // it briefly opens on join (which we release), or a track we stopped while the
+  // camera is off. Trusting isVideoEnabled alone renders a black tile; gating on
+  // a live track falls back to the avatar instead.
+  const hasLiveVideo = !!participant.stream
+    ?.getVideoTracks()
+    .some((t) => t.readyState === "live");
+  const hasVideo = participant.isPresentation || (!!participant.isVideoEnabled && hasLiveVideo);
   if (hasVideo) return <GridVideoView />;
   return <InitialsAvatar name={participant.displayName} />;
 }
