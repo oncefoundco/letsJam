@@ -44,6 +44,18 @@ function installMediaTracking() {
   md.__jamTrackingInstalled = true;
   const orig = md.getUserMedia.bind(md);
   md.getUserMedia = async (constraints?: MediaStreamConstraints) => {
+    const wantsVideo = !!(constraints && constraints.video);
+    const wantsAudio = !!(constraints && constraints.audio);
+    // getUserMedia powers on the camera (and lights the macOS green dot — plus a
+    // multi-second warm-up) the moment it's CALLED; we can't undo that after it
+    // resolves. So for a video-only request while the camera isn't wanted (the
+    // SDK's spurious camera acquire on join), short-circuit with an empty stream
+    // so the device never turns on. Audio-only and audio+video requests, and any
+    // request once the user has actually turned the camera on (cameraDesired),
+    // pass through to the real getUserMedia.
+    if (wantsVideo && !wantsAudio && !cameraDesired && !suppressMediaAcquisition) {
+      return new MediaStream();
+    }
     const stream = await orig(constraints);
     for (const track of stream.getTracks()) {
       if (suppressMediaAcquisition) {
@@ -52,10 +64,9 @@ function installMediaTracking() {
         continue;
       }
       if (track.kind === "video" && !cameraDesired) {
-        // The camera isn't wanted (e.g. the SDK's spurious enable on join). Stop
-        // it immediately so the green light never lingers. We don't track it; the
-        // off-camera reconciler removes the dead track from the stream so the SDK
-        // re-acquires cleanly on the next real enable.
+        // Backstop: a video track slipped through (e.g. bundled with audio) while
+        // the camera isn't wanted. Stop it; the off-camera reconciler removes the
+        // dead track from the stream so the SDK re-acquires cleanly later.
         track.stop();
         continue;
       }
