@@ -11,12 +11,16 @@ import {
 } from "./voting";
 import {
   insertNewSession,
+  insertOptions,
   insertParticipant,
   insertReflection,
   insertVote,
   loadSession,
   persistSession,
+  refineRound,
   sessionIdByRoomName,
+  setDecision,
+  setDotAllocations,
   setStartedAt,
 } from "./sessionStore";
 
@@ -499,8 +503,10 @@ export async function ensureOptions(sessionId: string): Promise<JamOption[] | nu
     id: crypto.randomUUID(),
     ...o,
   }));
-  session.options = options;
-  await saveSession(session);
+  // Persist atomically (idempotent — skips if a concurrent call already wrote
+  // them) and drop the cache so the next read reloads them from Postgres.
+  await insertOptions(sessionId, currentRound(session), options);
+  await kv.del(sessionKey(sessionId));
   return options;
 }
 
@@ -528,15 +534,11 @@ export async function setDotAllocation(
   const total = valid.reduce((sum, a) => sum + a.dots, 0);
   if (total > DOTS_PER_PARTICIPANT) return "too-many";
 
-  session.dotVotes = (session.dotVotes ?? []).filter(
-    (d) => !(d.participantId === participantId && d.round === round)
-  );
-  for (const a of valid) {
-    session.dotVotes.push({ participantId, optionId: a.optionId, dots: a.dots, round });
-  }
-  // Dot votes are Redis-only — no Postgres columns — so cache-only is both
-  // faster (~0.3s vs ~4s) and complete; persistSession wouldn't store them.
-  await cacheSession(session);
+  // Atomic per-participant write + cache drop (like insertVote): concurrent
+  // allocations can't clobber each other, and the next read reloads all dots
+  // from Postgres.
+  await setDotAllocations(sessionId, round, participantId, valid);
+  await kv.del(sessionKey(sessionId));
   return "ok";
 }
 
@@ -607,18 +609,16 @@ export async function resolveDots(
 
   // Refine when the refine card leads, or the top real options deadlock.
   if (topId === REFINE_OPTION_ID || topTie) {
-    session.round = round + 1;
-    session.dotVotes = (session.dotVotes ?? []).filter((d) => d.round !== round);
-    session.options = undefined;
-    session.reflections = [];
-    await saveSession(session);
-    return { resolution: "refining", round: session.round };
+    // Atomic round advance (clears this round's dots, options, reflections).
+    const next = await refineRound(sessionId, round);
+    await kv.del(sessionKey(sessionId));
+    return { resolution: "refining", round: next };
   }
 
   const winner = (session.options ?? []).find((o) => o.id === topId);
   if (!winner) return { resolution: "pending", round };
-  session.decision = { round, option: winner };
-  await saveSession(session);
+  await setDecision(sessionId, round, winner.id);
+  await kv.del(sessionKey(sessionId));
   return { resolution: "decided", round, option: winner };
 }
 

@@ -8,6 +8,8 @@ import type {
   Vote,
   VoteChoice,
   Outcome,
+  JamOption,
+  DotAllocation,
 } from "./sessions";
 
 // Maps the StoredSession blob (the Redis cache unit) to/from the normalized
@@ -41,7 +43,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
   if (!jam) return null;
 
   const round = jam.current_round;
-  const [participants, files, reflections, perspectives, votes, refine, outcome, summary] =
+  const [participants, files, reflections, perspectives, votes, refine, outcome, summary, options, dots, decision] =
     await Promise.all([
       sql`select id, name, color, joined_at from jam_participants where jam_id = ${id} order by joined_at asc`,
       sql`select name from jam_files where jam_id = ${id} order by created_at asc`,
@@ -51,6 +53,9 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
       sql`select reason from refine_context where jam_id = ${id} order by created_at asc`,
       sql`select round, choice, perspective_id from outcomes where jam_id = ${id} and round = ${round}`,
       sql`select decisions, open_questions, differences from jam_summaries where jam_id = ${id} order by created_at desc limit 1`,
+      sql`select id, title, body, attribution, author_id from jam_options where jam_id = ${id} and round = ${round} order by position asc`,
+      sql`select participant_id, option_id, dots, round from dot_allocations where jam_id = ${id}`,
+      sql`select round, option_id from jam_decisions where jam_id = ${id} and round = ${round}`,
     ]);
 
   const nameById = new Map(participants.map((p) => [p.id as string, p.name as string]));
@@ -96,6 +101,27 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
     };
   }
 
+  const optionList: JamOption[] = options.map((o) => ({
+    id: o.id as string,
+    title: (o.title as string) ?? "",
+    body: (o.body as string) ?? "",
+    attribution: (o.attribution as string) ?? "",
+    authorId: (o.author_id as string) ?? undefined,
+  }));
+
+  const dotVotes: DotAllocation[] = dots.map((d) => ({
+    participantId: d.participant_id as string,
+    optionId: d.option_id as string,
+    dots: d.dots as number,
+    round: d.round as number,
+  }));
+
+  let decisionVal: { round: number; option: JamOption } | undefined;
+  if (decision[0]) {
+    const opt = optionList.find((o) => o.id === decision[0].option_id);
+    if (opt) decisionVal = { round: decision[0].round as number, option: opt };
+  }
+
   return {
     id: jam.id,
     topic: jam.title,
@@ -119,6 +145,9 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
     votes: voteList,
     refineContext: refine.map((r) => r.reason as string),
     outcome: outcomeVal,
+    options: optionList.length ? optionList : undefined,
+    dotVotes,
+    decision: decisionVal,
   };
 }
 
@@ -146,6 +175,9 @@ export async function persistSession(s: StoredSession): Promise<void> {
         current_round = excluded.current_round`;
 
     // Replace all child rows for a clean, simple write (data per jam is small).
+    await tx`delete from jam_decisions where jam_id = ${s.id}`;
+    await tx`delete from dot_allocations where jam_id = ${s.id}`;
+    await tx`delete from jam_options where jam_id = ${s.id}`;
     await tx`delete from outcomes where jam_id = ${s.id}`;
     await tx`delete from votes where jam_id = ${s.id}`;
     await tx`delete from reflections where jam_id = ${s.id}`;
@@ -187,6 +219,20 @@ export async function persistSession(s: StoredSession): Promise<void> {
         values (${s.id}, ${s.outcome.round}, ${s.outcome.choice},
           (select id from perspectives where jam_id = ${s.id} and round = ${s.outcome.round}
                 and slot = ${s.outcome.choice} limit 1))`;
+    }
+    // Dot voting: options for the round, every participant's allocations, and
+    // the decision if resolved. (option_id is text — may be the 'refine' sentinel.)
+    for (const [i, o] of (s.options ?? []).entries()) {
+      await tx`insert into jam_options (id, jam_id, round, title, body, attribution, author_id, position)
+               values (${o.id}, ${s.id}, ${round}, ${o.title}, ${o.body}, ${o.attribution}, ${o.authorId ?? null}, ${i})`;
+    }
+    for (const d of s.dotVotes ?? []) {
+      await tx`insert into dot_allocations (jam_id, participant_id, round, option_id, dots)
+               values (${s.id}, ${d.participantId}, ${d.round}, ${d.optionId}, ${d.dots})`;
+    }
+    if (s.decision) {
+      await tx`insert into jam_decisions (jam_id, round, option_id)
+               values (${s.id}, ${s.decision.round}, ${s.decision.option.id})`;
     }
   });
 }
@@ -278,6 +324,65 @@ export async function setStartedAt(jamId: string): Promise<number | null> {
      where id = ${jamId}
     returning started_at`;
   return rows[0] ? ms(rows[0].started_at) ?? null : null;
+}
+
+// Atomically replace one participant's dot allocations for a round (like
+// insertVote). Caller invalidates the cache afterward.
+export async function setDotAllocations(
+  jamId: string,
+  round: number,
+  participantId: string,
+  allocations: { optionId: string; dots: number }[]
+): Promise<void> {
+  await sql.begin(async (tx) => {
+    await tx`delete from dot_allocations
+             where jam_id = ${jamId} and participant_id = ${participantId} and round = ${round}`;
+    for (const a of allocations) {
+      await tx`insert into dot_allocations (jam_id, participant_id, round, option_id, dots)
+               values (${jamId}, ${participantId}, ${round}, ${a.optionId}, ${a.dots})`;
+    }
+  });
+}
+
+// Insert the round's option cards once. Idempotent: skips if any already exist
+// for the round (a concurrent generation can't double-insert).
+export async function insertOptions(
+  jamId: string,
+  round: number,
+  options: JamOption[]
+): Promise<void> {
+  await sql.begin(async (tx) => {
+    const existing = await tx`select 1 from jam_options where jam_id = ${jamId} and round = ${round} limit 1`;
+    if (existing.length) return;
+    for (const [i, o] of options.entries()) {
+      await tx`insert into jam_options (id, jam_id, round, title, body, attribution, author_id, position)
+               values (${o.id}, ${jamId}, ${round}, ${o.title}, ${o.body}, ${o.attribution}, ${o.authorId ?? null}, ${i})`;
+    }
+  });
+}
+
+// Record the winning option for a round (idempotent upsert).
+export async function setDecision(
+  jamId: string,
+  round: number,
+  optionId: string
+): Promise<void> {
+  await sql`insert into jam_decisions (jam_id, round, option_id)
+            values (${jamId}, ${round}, ${optionId})
+            on conflict (jam_id, round) do update set option_id = excluded.option_id`;
+}
+
+// Refine: advance the round and clear this round's dots, the options, and the
+// reflections — all atomically so a concurrent read can't see a half-reset jam.
+export async function refineRound(jamId: string, fromRound: number): Promise<number> {
+  const next = fromRound + 1;
+  await sql.begin(async (tx) => {
+    await tx`update jams set current_round = ${next}, status = 'active' where id = ${jamId}`;
+    await tx`delete from dot_allocations where jam_id = ${jamId} and round = ${fromRound}`;
+    await tx`delete from jam_options where jam_id = ${jamId}`;
+    await tx`delete from reflections where jam_id = ${jamId}`;
+  });
+  return next;
 }
 
 // Reverse lookup for the Whereby webhook (replaces the Redis room:* index).
