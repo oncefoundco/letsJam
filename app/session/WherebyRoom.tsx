@@ -200,6 +200,62 @@ function RoomInner({
     return () => clearInterval(id);
   }, [state.isCameraEnabled, state.localParticipant?.stream]);
 
+  // Recover a detached camera. On a room RE-JOIN (notably entering diamond 2,
+  // where /session remounts and rejoins) the SDK can report the camera enabled
+  // while the live video track never lands on localParticipant.stream — the
+  // macOS camera light is on, but the tile shows the avatar with no footage and
+  // never self-heals. When "camera enabled but no live track" persists past a
+  // short settle window, force a clean re-acquire: toggle the camera OFF (the
+  // camera-off reconciler above drops the dead track) then back ON (so the SDK
+  // re-acquires fresh rather than re-enabling a dead track). Bounded to a few
+  // attempts so a camera that genuinely can't open doesn't flap forever.
+  //
+  // toggleCamera is recreated every render, so we hold it in a ref and keep this
+  // effect's deps to the actual signals (enabled + stream identity). Depending on
+  // toggleCamera directly would reset the detection timer on every render and it
+  // would never fire.
+  const toggleCameraRef = useRef(toggleCamera);
+  useEffect(() => {
+    toggleCameraRef.current = toggleCamera;
+  });
+  const reacquireRef = useRef<{
+    attempts: number;
+    timer: ReturnType<typeof setTimeout> | null;
+  }>({ attempts: 0, timer: null });
+  useEffect(() => {
+    const r = reacquireRef.current;
+    const clear = () => {
+      if (r.timer) {
+        clearTimeout(r.timer);
+        r.timer = null;
+      }
+    };
+    if (state.connectionStatus !== "connected" || !state.isCameraEnabled) {
+      clear();
+      return;
+    }
+    const hasLiveVideo = !!state.localParticipant?.stream
+      ?.getVideoTracks()
+      .some((t) => t.readyState === "live");
+    if (hasLiveVideo) {
+      r.attempts = 0; // healthy — restore the recovery budget
+      clear();
+      return;
+    }
+    if (r.timer || r.attempts >= 3) return; // already scheduled, or gave up
+    r.timer = setTimeout(() => {
+      r.timer = null;
+      r.attempts += 1;
+      toggleCameraRef.current(false);
+      setTimeout(() => toggleCameraRef.current(true), 400);
+    }, 1500);
+    return clear;
+  }, [
+    state.connectionStatus,
+    state.isCameraEnabled,
+    state.localParticipant?.stream,
+  ]);
+
   // leaveRoom() disconnects the room but does NOT reliably release the
   // getUserMedia tracks acquired via localMediaOptions, so we stop them here.
   function releaseLocalMedia() {
