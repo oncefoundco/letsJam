@@ -41,6 +41,7 @@ export default async function SelfReflectionPage({
         files={session.files}
         participants={session.participants}
         summary={session.summary}
+        refineContext={session.refineContext}
         hostId={session.participants[0]?.id}
       />
     </div>
@@ -76,6 +77,7 @@ function Body({
   files,
   participants,
   summary,
+  refineContext,
   hostId,
 }: {
   sessionId: string;
@@ -83,6 +85,7 @@ function Body({
   files: string[];
   participants: Participant[];
   summary?: SessionSummary;
+  refineContext?: string[];
   hostId?: string;
 }) {
   return (
@@ -96,7 +99,11 @@ function Body({
       <SessionSidebar
         activeStep={ACTIVE_STEP}
         topic={topic}
-        decisions={summary?.decisions}
+        decisions={
+          refineContext && refineContext.length > 0
+            ? refineContext
+            : summary?.decisions
+        }
         files={files}
         sessionId={sessionId}
         participants={participants}
