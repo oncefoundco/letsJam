@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
-import { ensureOptions } from "@/lib/sessions";
+import {
+  currentRound,
+  ensureOptions,
+  ensurePerspectives,
+  getSession,
+} from "@/lib/sessions";
 
-// Turn this round's reflections into dot-vote option cards. Idempotent.
+// Diamond 1 → dot-vote option cards; diamond 2 (round >= 2) → A/B perspectives.
+// Idempotent.
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -9,6 +15,20 @@ export async function POST(
   const { id } = await params;
 
   try {
+    const session = await getSession(id);
+    if (!session) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+    if (currentRound(session) >= 2) {
+      const perspectives = await ensurePerspectives(id);
+      if (!perspectives || perspectives.length === 0) {
+        return NextResponse.json(
+          { error: "No reflections to turn into perspectives yet" },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ perspectives });
+    }
     const options = await ensureOptions(id);
     if (options === null) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });

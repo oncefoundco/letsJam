@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveDots } from "@/lib/sessions";
+import { currentRound, getSession, resolveDots, resolveVotes } from "@/lib/sessions";
 
 // Resolve the current round. Host calls this (force=true to advance early);
 // the regular path only resolves once everyone has voted. Idempotent.
@@ -17,7 +17,16 @@ export async function POST(
     // empty body is fine
   }
 
-  const result = await resolveDots(id, { force });
+  const session = await getSession(id);
+  if (!session) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+  // Diamond 1 (round 1) resolves the dot vote (narrow to top 3); diamond 2
+  // (round >= 2) resolves the A/B vote (winner, or repeat on >=2 Refine).
+  const result =
+    currentRound(session) >= 2
+      ? await resolveVotes(id, { force })
+      : await resolveDots(id, { force });
   if (!result) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }

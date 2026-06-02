@@ -557,6 +557,33 @@ export async function ensureOptions(sessionId: string): Promise<JamOption[] | nu
   return options;
 }
 
+// Diamond 2: turn the round's single-take reflections into the A/B perspectives
+// the room votes between. Idempotent (returns existing perspectives). Mirrors
+// ensureOptions but uses clusterReflections (2 paths) instead of bucketing.
+export async function ensurePerspectives(
+  sessionId: string
+): Promise<Perspective[] | null> {
+  const session = await getSession(sessionId);
+  if (!session) return null;
+  if (session.perspectives && session.perspectives.length > 0) {
+    return session.perspectives;
+  }
+  const written = (session.reflections ?? []).filter(
+    (r) => !r.passed && r.text.trim().length > 0
+  );
+  if (written.length === 0) return [];
+  const { clusterReflections } = await import("./cluster");
+  const perspectives = await clusterReflections(
+    session.topic,
+    session.reflections ?? [],
+    session.summary,
+    session.refineContext
+  );
+  if (perspectives.length === 0) return [];
+  await setPerspectives(sessionId, perspectives);
+  return perspectives;
+}
+
 // Replace a participant's dot allocation for the current round. Total dots must
 // not exceed DOTS_PER_PARTICIPANT.
 export async function setDotAllocation(

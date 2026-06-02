@@ -4,6 +4,7 @@ import {
   getSession,
   type Participant,
   type JamOption,
+  type Perspective,
 } from "@/lib/sessions";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { SessionTimerControls } from "@/app/_components/SessionTimerControls";
@@ -16,6 +17,7 @@ import {
 } from "@/app/_components/HeaderControls";
 import { SynthesizePanel } from "./SynthesizePanel";
 import { DotVotePanel } from "./DotVotePanel";
+import { VotePanel } from "./VotePanel";
 
 export const metadata = {
   title: "Vote — Jam",
@@ -41,9 +43,14 @@ export default async function VotePage({
         files={session.files}
         participants={session.participants}
         options={session.options}
+        perspectives={session.perspectives}
         round={session.round ?? 1}
         hostId={session.participants[0]?.id}
-        decisions={session.summary?.decisions}
+        decisions={
+          session.refineContext && session.refineContext.length > 0
+            ? session.refineContext
+            : session.summary?.decisions
+        }
       />
     </div>
   );
@@ -78,6 +85,7 @@ function Body({
   files,
   participants,
   options,
+  perspectives,
   round,
   hostId,
   decisions,
@@ -87,6 +95,7 @@ function Body({
   files: string[];
   participants: Participant[];
   options?: JamOption[];
+  perspectives?: Perspective[];
   round: number;
   hostId?: string;
   decisions?: string[];
@@ -96,6 +105,7 @@ function Body({
       <MainCard
         sessionId={sessionId}
         options={options}
+        perspectives={perspectives}
         round={round}
         hostId={hostId}
       />
@@ -115,15 +125,22 @@ function Body({
 function MainCard({
   sessionId,
   options,
+  perspectives,
   round,
   hostId,
 }: {
   sessionId: string;
   options?: JamOption[];
+  perspectives?: Perspective[];
   round: number;
   hostId?: string;
 }) {
-  const ready = options && options.length > 0;
+  // Diamond 1 → dot vote on bucketed options; diamond 2 (round >= 2) → A/B vote
+  // on the two perspectives.
+  const ab = round >= 2;
+  const ready = ab
+    ? !!perspectives && perspectives.length > 0
+    : !!options && options.length > 0;
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-white p-6 md:p-8 lg:p-12">
       <div className="flex flex-col gap-4">
@@ -142,12 +159,21 @@ function MainCard({
       </div>
 
       {ready ? (
-        <DotVotePanel
-          sessionId={sessionId}
-          options={options!}
-          round={round}
-          hostId={hostId}
-        />
+        ab ? (
+          <VotePanel
+            sessionId={sessionId}
+            perspectives={perspectives!}
+            round={round}
+            hostId={hostId}
+          />
+        ) : (
+          <DotVotePanel
+            sessionId={sessionId}
+            options={options!}
+            round={round}
+            hostId={hostId}
+          />
+        )
       ) : (
         <SynthesizePanel sessionId={sessionId} />
       )}
