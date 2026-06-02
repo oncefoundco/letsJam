@@ -7,7 +7,7 @@ import {
   GridVideoView,
 } from "@whereby.com/browser-sdk/react";
 import type { ClientView } from "@whereby.com/core";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getInitials, colorForName } from "@/lib/avatar";
 
 // --- Bulletproof device release -------------------------------------------
@@ -26,6 +26,15 @@ import { getInitials, colorForName } from "@/lib/avatar";
 const acquiredTracks = new Set<MediaStreamTrack>();
 let suppressMediaAcquisition = false;
 
+// TEMPORARY diagnostics for the "camera on, no video track" bug — surfaced by the
+// debug overlay. Remove with the overlay once fixed.
+const gumStats = {
+  calls: 0, // total getUserMedia calls seen by our patch
+  suppressed: 0, // calls short-circuited because suppress flag was set
+  videoAcquired: 0, // live video tracks the real getUserMedia ever handed us
+  lastConstraints: "" as string,
+};
+
 function installMediaTracking() {
   if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
   const md = navigator.mediaDevices as MediaDevices & {
@@ -35,7 +44,14 @@ function installMediaTracking() {
   md.__jamTrackingInstalled = true;
   const orig = md.getUserMedia.bind(md);
   md.getUserMedia = async (constraints?: MediaStreamConstraints) => {
+    gumStats.calls += 1;
+    try {
+      gumStats.lastConstraints = JSON.stringify(constraints ?? {});
+    } catch {
+      gumStats.lastConstraints = "?";
+    }
     if (suppressMediaAcquisition) {
+      gumStats.suppressed += 1;
       // The room is tearing down (leave / unmount, where we set this flag before
       // leaveRoom). Don't open ANY device: return an empty stream WITHOUT calling
       // the real getUserMedia, so the camera/mic never power on during teardown.
@@ -45,6 +61,7 @@ function installMediaTracking() {
     }
     const stream = await orig(constraints);
     for (const track of stream.getTracks()) {
+      if (track.kind === "video") gumStats.videoAcquired += 1;
       acquiredTracks.add(track);
       track.addEventListener("ended", () => acquiredTracks.delete(track), {
         once: true,
@@ -90,6 +107,20 @@ function RoomInner({
   roomUrl: string;
   sessionId: string;
 }) {
+  // Re-arm media acquisition for THIS mount, synchronously, before
+  // useRoomConnection (and its effects) run. The previous room's unmount sets the
+  // module-level suppressMediaAcquisition=true; on a re-mount/re-join (entering
+  // diamond 2's second call) it's still true, and because useRoomConnection is
+  // called first its media-acquisition effects run BEFORE our join effect could
+  // reset the flag — so the SDK's getUserMedia hits our patch while suppressed
+  // and gets an empty stream. Result: camera "enabled" but zero video tracks (the
+  // diamond-2 no-video bug; confirmed via on-screen telemetry: videoTracks=0).
+  // A useState initializer runs during the first render, before any effect, so
+  // the flag is already false by the time the SDK acquires media.
+  useState(() => {
+    suppressMediaAcquisition = false;
+    return null;
+  });
   // The waiting room stores this participant's record (name + color) in
   // localStorage under participant.<sessionId>. Read the name so the SDK
   // shows real initials instead of the "Guest" → "G" fallback. Absent
@@ -199,62 +230,6 @@ function RoomInner({
     const id = setInterval(releaseOffVideo, 1000);
     return () => clearInterval(id);
   }, [state.isCameraEnabled, state.localParticipant?.stream]);
-
-  // Recover a detached camera. On a room RE-JOIN (notably entering diamond 2,
-  // where /session remounts and rejoins) the SDK can report the camera enabled
-  // while the live video track never lands on localParticipant.stream — the
-  // macOS camera light is on, but the tile shows the avatar with no footage and
-  // never self-heals. When "camera enabled but no live track" persists past a
-  // short settle window, force a clean re-acquire: toggle the camera OFF (the
-  // camera-off reconciler above drops the dead track) then back ON (so the SDK
-  // re-acquires fresh rather than re-enabling a dead track). Bounded to a few
-  // attempts so a camera that genuinely can't open doesn't flap forever.
-  //
-  // toggleCamera is recreated every render, so we hold it in a ref and keep this
-  // effect's deps to the actual signals (enabled + stream identity). Depending on
-  // toggleCamera directly would reset the detection timer on every render and it
-  // would never fire.
-  const toggleCameraRef = useRef(toggleCamera);
-  useEffect(() => {
-    toggleCameraRef.current = toggleCamera;
-  });
-  const reacquireRef = useRef<{
-    attempts: number;
-    timer: ReturnType<typeof setTimeout> | null;
-  }>({ attempts: 0, timer: null });
-  useEffect(() => {
-    const r = reacquireRef.current;
-    const clear = () => {
-      if (r.timer) {
-        clearTimeout(r.timer);
-        r.timer = null;
-      }
-    };
-    if (state.connectionStatus !== "connected" || !state.isCameraEnabled) {
-      clear();
-      return;
-    }
-    const hasLiveVideo = !!state.localParticipant?.stream
-      ?.getVideoTracks()
-      .some((t) => t.readyState === "live");
-    if (hasLiveVideo) {
-      r.attempts = 0; // healthy — restore the recovery budget
-      clear();
-      return;
-    }
-    if (r.timer || r.attempts >= 3) return; // already scheduled, or gave up
-    r.timer = setTimeout(() => {
-      r.timer = null;
-      r.attempts += 1;
-      toggleCameraRef.current(false);
-      setTimeout(() => toggleCameraRef.current(true), 400);
-    }, 1500);
-    return clear;
-  }, [
-    state.connectionStatus,
-    state.isCameraEnabled,
-    state.localParticipant?.stream,
-  ]);
 
   // leaveRoom() disconnects the room but does NOT reliably release the
   // getUserMedia tracks acquired via localMediaOptions, so we stop them here.
@@ -384,12 +359,21 @@ function CameraDebugOverlay({
   const aTracks = stream ? stream.getAudioTracks() : [];
   const fmt = (t: MediaStreamTrack) =>
     `${t.readyState}${t.enabled ? "" : "/disabled"}${t.muted ? "/muted" : ""}`;
+  let camWanted = "?";
+  try {
+    camWanted = sessionStorage.getItem("jam:camera") ?? "(unset)";
+  } catch {
+    camWanted = "(err)";
+  }
   const lines = [
     `conn=${state.connectionStatus}`,
     `camEnabled=${String(state.isCameraEnabled)} micEnabled=${String(state.isMicrophoneEnabled)}`,
+    `jam:camera=${camWanted}`,
     `localParticipant=${lp ? "yes" : "NO"} lp.isVideoEnabled=${String(lp?.isVideoEnabled)}`,
     `stream=${stream ? "yes" : "NO"} videoTracks=${vTracks.length} audioTracks=${aTracks.length}`,
     `video=[${vTracks.map(fmt).join(", ") || "none"}]`,
+    `gUM calls=${gumStats.calls} suppressed=${gumStats.suppressed} videoAcquired=${gumStats.videoAcquired}`,
+    `suppressNow=${String(suppressMediaAcquisition)} acquiredTracks=${acquiredTracks.size} lastGUM=${gumStats.lastConstraints}`,
     `remotes=${state.remoteParticipants?.length ?? 0} screenshares=${state.screenshares?.length ?? 0}`,
   ];
   return (
