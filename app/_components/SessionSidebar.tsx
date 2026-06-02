@@ -20,6 +20,7 @@ export function SessionSidebar({
   sessionId,
   participants,
   participantLabel,
+  timeline = false,
 }: {
   activeStep: number;
   topic: string;
@@ -28,10 +29,13 @@ export function SessionSidebar({
   sessionId: string;
   participants: Participant[];
   participantLabel: string;
+  // The refine page (diamond-2 reflection) shows the steps as a vertical
+  // Timeline with every label; other phases keep the compact numbered stepper.
+  timeline?: boolean;
 }) {
   return (
     <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
-      <StepIndicator activeStep={activeStep} />
+      <StepIndicator activeStep={activeStep} timeline={timeline} />
 
       <div className="flex w-full flex-col gap-6 rounded-2xl bg-[#f4f4f4] p-6">
         <div className="flex flex-col gap-3">
@@ -97,7 +101,41 @@ export function SessionSidebar({
   );
 }
 
-function StepIndicator({ activeStep }: { activeStep: number }) {
+function StepIndicator({
+  activeStep,
+  timeline,
+}: {
+  activeStep: number;
+  timeline?: boolean;
+}) {
+  if (timeline) {
+    // Vertical Timeline: every step labelled, the active one highlighted.
+    return (
+      <div className="flex flex-col gap-3">
+        {STEPS.map((label, idx) => {
+          const active = idx === activeStep;
+          return (
+            <div key={label} className="flex items-center gap-3">
+              <span
+                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] leading-none ${
+                  active ? "bg-[#e85d3c] text-white" : "bg-[#f4f4f4] text-black"
+                }`}
+                style={FONT}
+              >
+                {idx + 1}
+              </span>
+              <span
+                className={`text-[14px] leading-none ${active ? "text-[#1a1a1a]" : "text-black/45"}`}
+                style={FONT}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center gap-3">
       {STEPS.map((label, idx) => {

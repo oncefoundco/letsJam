@@ -108,6 +108,7 @@ function Body({
         sessionId={sessionId}
         participants={participants}
         participantLabel="In the room"
+        timeline={!!refineContext && refineContext.length > 0}
       />
     </div>
   );
