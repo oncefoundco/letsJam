@@ -231,6 +231,72 @@ function RoomInner({
     return () => clearInterval(id);
   }, [state.isCameraEnabled, state.localParticipant?.stream]);
 
+  // Attach a stuck camera. In this SDK build, turning the camera ON (especially
+  // after joining with it off) acquires a LIVE video track — green light on,
+  // present in our registry — but the SDK never re-emits it onto
+  // localParticipant.stream, so the grid shows the avatar with no footage.
+  // Diagnosed live: camEnabled=true, a live track exists, yet stream videoTracks=0;
+  // flipping the MICROPHONE makes the SDK re-acquire the local media and the video
+  // attaches (and stays). A camera off→on can't be used to fix it because toggling
+  // the camera off triggers the release sweep above, which strips the track.
+  //
+  // So when "camera enabled but no live video track on the stream" persists past a
+  // short settle window, nudge a local-media re-acquire by flipping the mic to the
+  // opposite of its current state and back — net mic state unchanged. Bounded so a
+  // camera that genuinely can't open won't loop. toggleMicrophone is recreated each
+  // render, so it's held in a ref to keep this effect's deps to the real signals.
+  const toggleMicRef = useRef(toggleMicrophone);
+  useEffect(() => {
+    toggleMicRef.current = toggleMicrophone;
+  });
+  const attachRef = useRef<{
+    attempts: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    inProgress: boolean;
+  }>({ attempts: 0, timer: null, inProgress: false });
+  useEffect(() => {
+    const a = attachRef.current;
+    const clear = () => {
+      if (a.timer) {
+        clearTimeout(a.timer);
+        a.timer = null;
+      }
+    };
+    if (a.inProgress) return; // don't re-evaluate mid-nudge (mic state is flipping)
+    if (state.connectionStatus !== "connected" || !state.isCameraEnabled) {
+      clear();
+      return;
+    }
+    const hasLiveVideo = !!state.localParticipant?.stream
+      ?.getVideoTracks()
+      .some((t) => t.readyState === "live");
+    if (hasLiveVideo) {
+      a.attempts = 0; // video attached — healthy
+      clear();
+      return;
+    }
+    if (a.timer || a.attempts >= 2) return; // scheduled, or gave up
+    const micOn = state.isMicrophoneEnabled;
+    a.timer = setTimeout(() => {
+      a.timer = null;
+      a.attempts += 1;
+      a.inProgress = true;
+      toggleMicRef.current(!micOn);
+      setTimeout(() => {
+        toggleMicRef.current(micOn); // restore the user's mic state
+        setTimeout(() => {
+          a.inProgress = false; // let the effect re-evaluate after the re-acquire
+        }, 600);
+      }, 250);
+    }, 800);
+    return clear;
+  }, [
+    state.connectionStatus,
+    state.isCameraEnabled,
+    state.isMicrophoneEnabled,
+    state.localParticipant?.stream,
+  ]);
+
   // leaveRoom() disconnects the room but does NOT reliably release the
   // getUserMedia tracks acquired via localMediaOptions, so we stop them here.
   function releaseLocalMedia() {
