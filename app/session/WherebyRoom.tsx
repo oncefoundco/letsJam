@@ -348,6 +348,8 @@ function RoomInner({
       <div className="absolute inset-0">
         <VideoGrid renderParticipant={renderParticipant} enableSubgrid={false} />
       </div>
+      {/* TEMPORARY diagnostic — remove once the diamond-2 no-video bug is fixed. */}
+      <CameraDebugOverlay state={state} />
       {state.connectionStatus !== "connected" ? (
         <Placeholder label={statusLabel(state.connectionStatus)} />
       ) : null}
@@ -365,6 +367,37 @@ function RoomInner({
         }}
       />
     </RoomShell>
+  );
+}
+
+// TEMPORARY diagnostic overlay for the diamond-2 "camera on, no footage" bug.
+// Surfaces the exact Whereby runtime state on-screen (screenshot-friendly) so we
+// can see WHY there's no video without needing the dev console. Remove once fixed.
+function CameraDebugOverlay({
+  state,
+}: {
+  state: ReturnType<typeof useRoomConnection>["state"];
+}) {
+  const lp = state.localParticipant;
+  const stream = lp?.stream ?? null;
+  const vTracks = stream ? stream.getVideoTracks() : [];
+  const aTracks = stream ? stream.getAudioTracks() : [];
+  const fmt = (t: MediaStreamTrack) =>
+    `${t.readyState}${t.enabled ? "" : "/disabled"}${t.muted ? "/muted" : ""}`;
+  const lines = [
+    `conn=${state.connectionStatus}`,
+    `camEnabled=${String(state.isCameraEnabled)} micEnabled=${String(state.isMicrophoneEnabled)}`,
+    `localParticipant=${lp ? "yes" : "NO"} lp.isVideoEnabled=${String(lp?.isVideoEnabled)}`,
+    `stream=${stream ? "yes" : "NO"} videoTracks=${vTracks.length} audioTracks=${aTracks.length}`,
+    `video=[${vTracks.map(fmt).join(", ") || "none"}]`,
+    `remotes=${state.remoteParticipants?.length ?? 0} screenshares=${state.screenshares?.length ?? 0}`,
+  ];
+  return (
+    <div className="pointer-events-none absolute left-2 top-2 z-30 max-w-[95%] rounded-md bg-black/80 px-2 py-1.5 font-mono text-[10px] leading-[1.4] text-green-300">
+      {lines.map((l, i) => (
+        <div key={i}>{l}</div>
+      ))}
+    </div>
   );
 }
 
