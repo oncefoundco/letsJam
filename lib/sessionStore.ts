@@ -419,6 +419,7 @@ export async function refineRound(jamId: string, fromRound: number): Promise<num
     await tx`delete from dot_allocations where jam_id = ${jamId} and round = ${fromRound}`;
     await tx`delete from jam_options where jam_id = ${jamId}`;
     await tx`delete from reflections where jam_id = ${jamId}`;
+    await tx`delete from reflection_ideas where jam_id = ${jamId}`;
   });
   return next;
 }
