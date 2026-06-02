@@ -5,6 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 
 const POLL_MS = 3000;
 
+// Up to three takes per person, each with a "refine" flag (this idea needs
+// another round before it's worth voting on). Empty slots are dropped on submit.
+type Idea = { text: string; refine: boolean };
+const EMPTY_IDEAS: Idea[] = [
+  { text: "", refine: false },
+  { text: "", refine: false },
+  { text: "", refine: false },
+];
+
 export function ReflectionForm({
   sessionId,
   onwardHref,
@@ -15,7 +24,9 @@ export function ReflectionForm({
   hostId?: string;
 }) {
   const router = useRouter();
-  const [text, setText] = useState("");
+  const [ideas, setIdeas] = useState<Idea[]>(() =>
+    EMPTY_IDEAS.map((i) => ({ ...i }))
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // null = still editing; once set, we've submitted and are gating on others.
@@ -43,15 +54,44 @@ export function ReflectionForm({
 
   const draftKey = `reflection-draft.${sessionId}`;
 
-  // Restore an unsubmitted draft after a reload so typed text isn't lost.
+  // Restore an unsubmitted draft after a reload so typed ideas aren't lost.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(draftKey);
-      if (saved) setText((prev) => prev || saved);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as unknown;
+      if (Array.isArray(parsed)) {
+        setIdeas((prev) =>
+          prev.map((slot, i) => {
+            const raw = parsed[i] as { text?: unknown; refine?: unknown } | undefined;
+            return {
+              text: typeof raw?.text === "string" ? raw.text : slot.text,
+              refine: raw?.refine === true,
+            };
+          })
+        );
+      }
     } catch {
-      // ignore (private browsing / storage unavailable)
+      // ignore (private browsing / corrupt draft)
     }
   }, [draftKey]);
+
+  const updateIdea = useCallback(
+    (index: number, patch: Partial<Idea>) => {
+      setIdeas((prev) => {
+        const next = prev.map((slot, i) =>
+          i === index ? { ...slot, ...patch } : slot
+        );
+        try {
+          localStorage.setItem(draftKey, JSON.stringify(next));
+        } catch {
+          // ignore (private browsing / storage full)
+        }
+        return next;
+      });
+    },
+    [draftKey]
+  );
 
   // Poll the reflection phase the whole time — while editing AND while gating.
   // Advance the whole room to the vote when everyone has submitted OR options
@@ -101,8 +141,11 @@ export function ReflectionForm({
       setError("We lost track of who you are — reload and rejoin.");
       return;
     }
-    if (!passed && !text.trim()) {
-      setError("Write your take, or hit Pass.");
+    const filled = ideas
+      .map((i) => ({ text: i.text.trim(), refine: i.refine }))
+      .filter((i) => i.text.length > 0);
+    if (!passed && filled.length === 0) {
+      setError("Write at least one idea, or hit Pass.");
       return;
     }
     setSubmitting(true);
@@ -111,7 +154,7 @@ export function ReflectionForm({
       const res = await fetch(`/api/sessions/${sessionId}/reflections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participantId: pid, text: text.trim(), passed }),
+        body: JSON.stringify({ participantId: pid, ideas: filled, passed }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -192,35 +235,47 @@ export function ReflectionForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex h-[342px] flex-col justify-between rounded-2xl bg-[#f5f5f5] p-4">
-        <textarea
-          value={text}
-          onChange={(e) => {
-            const value = e.target.value;
-            setText(value);
-            try {
-              localStorage.setItem(draftKey, value);
-            } catch {
-              // ignore (private browsing / storage full)
-            }
-          }}
-          placeholder="What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces."
-          className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none placeholder:text-[#7a7a7a]"
-          style={{ fontFamily: "var(--font-public-sans)" }}
-        />
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[#b5b5b5]" aria-hidden>
-              🔒
-            </span>
-            <p
-              className="text-[12px] text-[#7a7a7a]"
+      <div className="flex flex-col gap-4">
+        {ideas.map((idea, i) => (
+          <div
+            key={i}
+            className="flex min-h-[112px] flex-col justify-between gap-3 rounded-2xl bg-[#f5f5f5] p-4"
+          >
+            <textarea
+              value={idea.text}
+              onChange={(e) => updateIdea(i, { text: e.target.value })}
+              placeholder="What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces."
+              className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none placeholder:text-[#7a7a7a]"
               style={{ fontFamily: "var(--font-public-sans)" }}
-            >
-              Private until everyone is in
-            </p>
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] text-[#b5b5b5]" aria-hidden>
+                  🔒
+                </span>
+                <p
+                  className="text-[12px] text-[#7a7a7a]"
+                  style={{ fontFamily: "var(--font-public-sans)" }}
+                >
+                  Private until everyone is in
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateIdea(i, { refine: !idea.refine })}
+                aria-pressed={idea.refine}
+                className={`rounded-full px-4 py-2 text-[13px] font-medium leading-none transition-colors ${
+                  idea.refine
+                    ? "bg-[#1a1a1a] text-white hover:bg-black"
+                    : "bg-white text-black ring-1 ring-inset ring-black/10 hover:bg-neutral-100"
+                }`}
+                style={{ fontFamily: "var(--font-public-sans)" }}
+              >
+                Refine
+              </button>
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {error ? (

@@ -273,15 +273,35 @@ export async function insertNewSession(s: StoredSession): Promise<void> {
 export async function insertReflection(
   jamId: string,
   round: number,
-  reflection: { participantId: string; text: string; passed: boolean }
+  reflection: {
+    participantId: string;
+    text: string;
+    passed: boolean;
+    // Up to three takes per person, each with a refine flag. Optional so the
+    // legacy single-text path still works; reflections.text above stays the
+    // joined backward-compat copy that synthesis reads.
+    ideas?: { text: string; refine: boolean }[];
+  }
 ): Promise<void> {
+  const now = new Date();
+  const ideas = (reflection.ideas ?? []).slice(0, 3);
   await sql.begin(async (tx) => {
     await tx`delete from reflections
              where jam_id = ${jamId}
                and participant_id = ${reflection.participantId}
                and round = ${round}`;
     await tx`insert into reflections (jam_id, participant_id, round, text, passed, submitted_at)
-             values (${jamId}, ${reflection.participantId}, ${round}, ${reflection.text}, ${reflection.passed}, ${new Date()})`;
+             values (${jamId}, ${reflection.participantId}, ${round}, ${reflection.text}, ${reflection.passed}, ${now})`;
+    await tx`delete from reflection_ideas
+             where jam_id = ${jamId}
+               and participant_id = ${reflection.participantId}
+               and round = ${round}`;
+    for (let idx = 0; idx < ideas.length; idx++) {
+      const idea = ideas[idx];
+      if (!idea.text.trim()) continue;
+      await tx`insert into reflection_ideas (jam_id, participant_id, round, idx, text, refine, submitted_at)
+               values (${jamId}, ${reflection.participantId}, ${round}, ${idx}, ${idea.text}, ${idea.refine}, ${now})`;
+    }
   });
 }
 

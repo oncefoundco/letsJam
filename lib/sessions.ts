@@ -350,7 +350,12 @@ export async function stopPhaseTimer(
 // rather than clobbering each other's copy of the session.
 export async function saveReflection(
   sessionId: string,
-  reflection: { participantId: string; text: string; passed: boolean }
+  reflection: {
+    participantId: string;
+    text: string;
+    passed: boolean;
+    ideas?: { text: string; refine: boolean }[];
+  }
 ): Promise<boolean> {
   const session = await getSession(sessionId);
   if (!session) return false;
