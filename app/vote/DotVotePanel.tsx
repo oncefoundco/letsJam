@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { REFINE_OPTION_ID, type JamOption } from "@/lib/voting";
+import { type JamOption } from "@/lib/voting";
 
 const POLL_MS = 3000;
 
@@ -173,15 +173,15 @@ export function DotVotePanel({
     [alloc, used, dotsTotal, persist]
   );
 
-  const cards: { id: string; title: string; body?: string; attribution?: string; refine?: boolean }[] = [
-    ...options.map((o) => ({
+  // Refine lives in the reflection step now (per-idea), not as a vote card, so
+  // the cards are exactly the bucketed options.
+  const cards: { id: string; title: string; body?: string; attribution?: string }[] =
+    options.map((o) => ({
       id: o.id,
       title: o.title,
       body: o.body,
       attribution: o.attribution,
-    })),
-    { id: REFINE_OPTION_ID, title: "Neither, we need to refine", refine: true },
-  ];
+    }));
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-20">
@@ -211,7 +211,6 @@ export function DotVotePanel({
               title={card.title}
               body={card.body}
               attribution={card.attribution}
-              refine={card.refine}
               dots={[...others, ...myDots]}
               mine={alloc[card.id] ?? 0}
               canAdd={left > 0}
@@ -231,7 +230,6 @@ function OptionCard({
   title,
   body,
   attribution,
-  refine,
   dots,
   mine,
   canAdd,
@@ -241,7 +239,6 @@ function OptionCard({
   title: string;
   body?: string;
   attribution?: string;
-  refine?: boolean;
   dots: string[];
   mine: number;
   canAdd: boolean;
@@ -284,11 +281,6 @@ function OptionCard({
               style={{ backgroundColor: color }}
             />
           ))}
-          {refine && dots.length === 0 ? (
-            <span className="text-[11px] text-black/35" style={{ fontFamily: "var(--font-public-sans)" }}>
-              Send it back for another round
-            </span>
-          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
