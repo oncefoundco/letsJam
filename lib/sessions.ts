@@ -17,6 +17,7 @@ import {
   insertVote,
   loadReflectionIdeas,
   loadSession,
+  tryRefineRound,
   persistSession,
   refineRound,
   sessionIdByRoomName,
@@ -502,10 +503,37 @@ export async function ensureOptions(sessionId: string): Promise<JamOption[] | nu
   const round = currentRound(session);
   const ideaRows = await loadReflectionIdeas(sessionId, round);
   const nameById = new Map(session.participants.map((p) => [p.id, p.name]));
+
+  // Refine: ideas a participant flagged "refine" don't go up for a vote. If two
+  // or more DISTINCT people asked to refine, the room repeats the reflection
+  // round instead of voting (capped to avoid an endless loop). The round bump is
+  // concurrency-safe, so the many clients that hit this transition at once can't
+  // double-advance; once bumped, poll-based routing sends everyone back to the
+  // reflection step.
+  const MAX_REFINE_ROUNDS = 4;
+  if (ideaRows.length) {
+    const refiners = new Set(
+      ideaRows.filter((i) => i.refine && i.text.trim().length > 0).map((i) => i.participantId)
+    );
+    if (refiners.size >= 2 && round < MAX_REFINE_ROUNDS) {
+      const bumped = await tryRefineRound(sessionId, round);
+      if (bumped) await kv.del(sessionKey(sessionId));
+      return [];
+    }
+  }
+
   const entries = ideaRows.length
-    ? ideaRows
-        .filter((i) => i.text.trim().length > 0)
-        .map((i) => ({ name: nameById.get(i.participantId) ?? "Someone", text: i.text }))
+    ? (() => {
+        // Drop refine-flagged ideas; fall back to all ideas if dropping them
+        // would leave too little to vote on.
+        const kept = ideaRows.filter((i) => i.text.trim().length > 0 && !i.refine);
+        const src =
+          kept.length >= 2 ? kept : ideaRows.filter((i) => i.text.trim().length > 0);
+        return src.map((i) => ({
+          name: nameById.get(i.participantId) ?? "Someone",
+          text: i.text,
+        }));
+      })()
     : (session.reflections ?? [])
         .filter((r) => !r.passed && r.text.trim().length > 0)
         .map((r) => ({ name: r.name, text: r.text }));

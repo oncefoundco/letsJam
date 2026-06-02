@@ -424,6 +424,28 @@ export async function refineRound(jamId: string, fromRound: number): Promise<num
   return next;
 }
 
+// Concurrency-safe refine used by the reflection-phase trigger: many clients may
+// hit the reflection->vote transition at once, so the round bump is conditional
+// on the round not already having moved (only one caller wins). Returns true if
+// THIS call advanced the round. Mirrors refineRound's resets.
+export async function tryRefineRound(
+  jamId: string,
+  fromRound: number
+): Promise<boolean> {
+  let bumped = false;
+  await sql.begin(async (tx) => {
+    const res = await tx`update jams set current_round = ${fromRound + 1}, status = 'active'
+                         where id = ${jamId} and current_round = ${fromRound}`;
+    if (res.count === 0) return; // someone else already advanced this round
+    bumped = true;
+    await tx`delete from dot_allocations where jam_id = ${jamId} and round = ${fromRound}`;
+    await tx`delete from jam_options where jam_id = ${jamId}`;
+    await tx`delete from reflections where jam_id = ${jamId}`;
+    await tx`delete from reflection_ideas where jam_id = ${jamId}`;
+  });
+  return bumped;
+}
+
 // Reverse lookup for the Whereby webhook (replaces the Redis room:* index).
 export async function sessionIdByRoomName(roomName: string): Promise<string | null> {
   const rows = await sql<{ id: string }[]>`
