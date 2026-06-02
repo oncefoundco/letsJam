@@ -33,7 +33,6 @@ export function SessionTimerControls({
   const [timer, setTimer] = useState<PhaseTimer | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());
   const navigated = useRef(false);
-  const ensured = useRef(false);
 
   const isHost = hostId != null && meId === hostId;
 
@@ -62,12 +61,16 @@ export function SessionTimerControls({
     [sessionId, meId]
   );
 
-  // Host starts this phase's countdown once.
+  // Host keeps this phase's countdown alive: ensure it exists, and re-ensure if
+  // a poll ever comes back without a running timer for THIS phase (the key
+  // expired, or we just arrived in a new round/phase). Self-healing — the old
+  // once-only guard meant a single failed ensure POST left no timer all session.
+  // ensurePhaseTimer is idempotent within a round+phase, so a duplicate is safe.
   useEffect(() => {
-    if (!isHost || ensured.current) return;
-    ensured.current = true;
+    if (!isHost) return;
+    if (timer && timer.phase === phase && timer.endedAt == null) return;
     void post("ensure", { phase });
-  }, [isHost, phase, post]);
+  }, [isHost, phase, timer, post]);
 
   // Follow the shared timer + tick locally for a smooth display.
   useEffect(() => {

@@ -186,14 +186,6 @@ export async function createSession(session: StoredSession): Promise<void> {
   await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
 }
 
-// Write only the Redis cache, skipping persistSession. For state that lives
-// solely in the session blob with no Postgres columns yet — dot votes (and the
-// phase timer). persistSession would spend ~4s rewriting every child table on
-// the Sydney pooler without even storing this data, so it's pure overhead here.
-async function cacheSession(session: StoredSession): Promise<void> {
-  await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
-}
-
 export async function getSession(
   id: string
 ): Promise<StoredSession | undefined> {
@@ -279,9 +271,35 @@ export async function setPerspectives(
 
 // ── Phase timer ──────────────────────────────────────────────────────────────
 // Host-only enforcement lives in the timer route; these just read-modify-write.
+//
+// The timer lives in its OWN Redis key, NOT the session blob. It has no Postgres
+// columns, so if it rode along in the blob it was destroyed every time the blob
+// cache was invalidated (kv.del) and rebuilt from Postgres — which is exactly
+// what the diamond-1→2 transition does (narrowToRound2 → kv.del), leaving round 2
+// with timer=null (a frozen 5:00 that never ticks, and a Stop button with nothing
+// to stop). A standalone key survives blob invalidation. We also stamp the round
+// so a new round/phase always starts a fresh countdown instead of inheriting an
+// expired one. (dotVotes, the other "Redis-only" field, survive because Postgres
+// rebuilds them from dot_allocations — the timer had no such source of truth.)
+type StoredTimer = PhaseTimer & { round: number };
 
-// Start the countdown for a phase. Idempotent: if a non-ended timer for this
-// phase already runs, leave it be so re-mounts don't reset the clock.
+function timerKey(id: string) {
+  return `timer:${id}`;
+}
+
+export async function getPhaseTimer(
+  sessionId: string
+): Promise<PhaseTimer | null> {
+  return (await kv.get<StoredTimer>(timerKey(sessionId))) ?? null;
+}
+
+async function writeTimer(sessionId: string, timer: StoredTimer): Promise<void> {
+  await kv.set(timerKey(sessionId), timer, { ex: SESSION_TTL_SECONDS });
+}
+
+// Start the countdown for a phase. Idempotent within a round: if a non-ended
+// timer for this phase+round already runs, leave it be so re-mounts don't reset
+// the clock. A different phase OR a new round starts fresh.
 export async function ensurePhaseTimer(
   sessionId: string,
   phase: TimerPhase,
@@ -289,32 +307,37 @@ export async function ensurePhaseTimer(
 ): Promise<PhaseTimer | null> {
   const session = await getSession(sessionId);
   if (!session) return null;
-  const current = session.timer;
-  if (current && current.phase === phase && current.endedAt == null) {
+  const round = currentRound(session);
+  const current = await getPhaseTimer(sessionId);
+  if (
+    current &&
+    (current as StoredTimer).round === round &&
+    current.phase === phase &&
+    current.endedAt == null
+  ) {
     return current;
   }
-  const timer: PhaseTimer = {
+  const timer: StoredTimer = {
     phase,
+    round,
     startedAt: Date.now(),
     durationMs,
     pausedAt: null,
     pausedAccumMs: 0,
     endedAt: null,
   };
-  session.timer = timer;
-  await saveSession(session);
+  await writeTimer(sessionId, timer);
   return timer;
 }
 
 export async function pausePhaseTimer(
   sessionId: string
 ): Promise<PhaseTimer | null> {
-  const session = await getSession(sessionId);
-  if (!session?.timer) return null;
-  const t = session.timer;
+  const t = (await getPhaseTimer(sessionId)) as StoredTimer | null;
+  if (!t) return null;
   if (t.endedAt == null && t.pausedAt == null) {
     t.pausedAt = Date.now();
-    await saveSession(session);
+    await writeTimer(sessionId, t);
   }
   return t;
 }
@@ -322,13 +345,12 @@ export async function pausePhaseTimer(
 export async function resumePhaseTimer(
   sessionId: string
 ): Promise<PhaseTimer | null> {
-  const session = await getSession(sessionId);
-  if (!session?.timer) return null;
-  const t = session.timer;
+  const t = (await getPhaseTimer(sessionId)) as StoredTimer | null;
+  if (!t) return null;
   if (t.endedAt == null && t.pausedAt != null) {
     t.pausedAccumMs += Date.now() - t.pausedAt;
     t.pausedAt = null;
-    await saveSession(session);
+    await writeTimer(sessionId, t);
   }
   return t;
 }
@@ -336,12 +358,11 @@ export async function resumePhaseTimer(
 export async function stopPhaseTimer(
   sessionId: string
 ): Promise<PhaseTimer | null> {
-  const session = await getSession(sessionId);
-  if (!session?.timer) return null;
-  const t = session.timer;
+  const t = (await getPhaseTimer(sessionId)) as StoredTimer | null;
+  if (!t) return null;
   if (t.endedAt == null) {
     t.endedAt = Date.now();
-    await saveSession(session);
+    await writeTimer(sessionId, t);
   }
   return t;
 }

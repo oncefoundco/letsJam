@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentRound, getSession } from "@/lib/sessions";
+import { currentRound, getPhaseTimer, getSession } from "@/lib/sessions";
 
 // Gate between Self Reflection and Vote: how many people have weighed in (passes count).
 export async function GET(
@@ -14,6 +14,9 @@ export async function GET(
 
   const total = session.participants.length;
   const reflections = session.reflections ?? [];
+  // Timer lives in its own Redis key (not the session blob), so it survives the
+  // cache invalidations that wiped it on the round transition. See lib/sessions.
+  const timer = await getPhaseTimer(id);
   return NextResponse.json({
     submitted: reflections.length,
     total,
@@ -25,6 +28,6 @@ export async function GET(
     optionsReady: (session.options?.length ?? 0) > 0,
     round: currentRound(session),
     startedAt: session.startedAt ?? null,
-    timer: session.timer ?? null,
+    timer,
   });
 }
