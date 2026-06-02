@@ -18,10 +18,14 @@ export function ReflectionForm({
   sessionId,
   onwardHref,
   hostId,
+  single = false,
 }: {
   sessionId: string;
   onwardHref: string;
   hostId?: string;
+  // Diamond 2's second reflection is a single take (not the 3-idea form); it
+  // feeds the A/B perspectives vote. Posts the legacy single `text`.
+  single?: boolean;
 }) {
   const router = useRouter();
   const [ideas, setIdeas] = useState<Idea[]>(() =>
@@ -154,7 +158,11 @@ export function ReflectionForm({
       const res = await fetch(`/api/sessions/${sessionId}/reflections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participantId: pid, ideas: filled, passed }),
+        body: JSON.stringify(
+          single
+            ? { participantId: pid, text: filled[0]?.text ?? "", passed }
+            : { participantId: pid, ideas: filled, passed }
+        ),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -235,6 +243,28 @@ export function ReflectionForm({
 
   return (
     <div className="flex flex-col gap-6">
+      {single ? (
+        <div className="flex min-h-[342px] flex-col justify-between rounded-2xl bg-[#f5f5f5] p-4">
+          <textarea
+            value={ideas[0].text}
+            onChange={(e) => updateIdea(0, { text: e.target.value })}
+            placeholder="What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces."
+            className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none placeholder:text-[#7a7a7a]"
+            style={{ fontFamily: "var(--font-public-sans)" }}
+          />
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-[13px] text-[#b5b5b5]" aria-hidden>
+              🔒
+            </span>
+            <p
+              className="text-[12px] text-[#7a7a7a]"
+              style={{ fontFamily: "var(--font-public-sans)" }}
+            >
+              Private until everyone is in
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-col gap-4">
         {ideas.map((idea, i) => (
           <div
@@ -277,6 +307,7 @@ export function ReflectionForm({
           </div>
         ))}
       </div>
+      )}
 
       {error ? (
         <p

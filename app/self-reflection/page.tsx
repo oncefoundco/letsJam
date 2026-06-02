@@ -95,6 +95,7 @@ function Body({
         topic={topic}
         summary={summary}
         hostId={hostId}
+        single={!!refineContext && refineContext.length > 0}
       />
       <SessionSidebar
         activeStep={ACTIVE_STEP}
@@ -119,11 +120,13 @@ function MainCard({
   topic,
   summary,
   hostId,
+  single,
 }: {
   sessionId: string;
   topic: string;
   summary?: SessionSummary;
   hostId?: string;
+  single?: boolean;
 }) {
   const onwardHref = `/vote?session=${sessionId}`;
   return (
@@ -148,6 +151,7 @@ function MainCard({
           sessionId={sessionId}
           onwardHref={onwardHref}
           hostId={hostId}
+          single={single}
         />
       </div>
     </section>
