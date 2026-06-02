@@ -66,7 +66,14 @@ export function DotVotePanel({
       }
       if (s.round > round) {
         navigated.current = true;
-        router.push(`/self-reflection?session=${sessionId}`);
+        // Diamond 1's vote narrows to the top 3 and advances to round 2 — start
+        // the SECOND CALL on the 3 ideas. A later-round bump is a refine, which
+        // goes straight back to reflection.
+        router.push(
+          round < 2
+            ? `/session?session=${sessionId}`
+            : `/self-reflection?session=${sessionId}`
+        );
         return true;
       }
       return false;

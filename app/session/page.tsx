@@ -67,7 +67,11 @@ export default async function SessionPage({
         <SessionSidebar
           activeStep={1}
           topic={session.topic}
-          decisions={session.summary?.decisions}
+          decisions={
+            session.refineContext && session.refineContext.length > 0
+              ? session.refineContext
+              : session.summary?.decisions
+          }
           files={session.files}
           sessionId={session.id}
           participants={session.participants}
