@@ -35,6 +35,7 @@ export function DotVotePanel({
   const [alloc, setAlloc] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<DotStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
   const navigated = useRef(false);
 
   const dotsTotal = status?.dotsPerParticipant ?? 5;
@@ -136,9 +137,15 @@ export function DotVotePanel({
   }, [refresh, route, isHost, round, sessionId]);
 
   const persist = useCallback(
-    async (next: Record<string, number>) => {
+    // `prev` is the allocation to roll back to if the save fails — without it a
+    // failed POST leaves the optimistic dot on screen, which both loses the
+    // write silently AND keeps "dots left" at 0, so the +/- buttons stay
+    // disabled and the user can never retry (the session then wedges, since
+    // auto-resolve only fires once all 5 dots are persisted server-side).
+    async (next: Record<string, number>, prev: Record<string, number>) => {
       if (!meId) {
         setError("We lost track of who you are — reload and rejoin.");
+        setAlloc(prev);
         return;
       }
       const allocations = Object.entries(next)
@@ -157,7 +164,12 @@ export function DotVotePanel({
         setError(null);
         refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't save your dots");
+        setAlloc(prev);
+        setError(
+          err instanceof Error
+            ? `${err.message} — your dot wasn't saved, try again.`
+            : "Couldn't save your dots — try again."
+        );
       }
     },
     [meId, sessionId, refresh]
@@ -173,12 +185,35 @@ export function DotVotePanel({
       if (nextVal === 0) delete next[optionId];
       else next[optionId] = nextVal;
       // Pure update + side-effect kept out of the setState updater (which can
-      // run twice in dev StrictMode and would double-POST).
+      // run twice in dev StrictMode and would double-POST). `alloc` is the
+      // last-committed state, which persist() restores if the save fails.
       setAlloc(next);
-      persist(next);
+      persist(next, alloc);
     },
     [alloc, used, dotsTotal, persist]
   );
+
+  // Host escape hatch: force-resolve the round now (force=true skips the
+  // "everyone's in" gate). Without this, a vote that never reaches all-dots-in
+  // — e.g. a save that failed, or a host who just wants to move on — has no way
+  // to advance, since the dot vote has no timer-expiry auto-resolve.
+  const resolveNow = useCallback(async () => {
+    if (resolving) return;
+    setResolving(true);
+    try {
+      await fetch(`/api/sessions/${sessionId}/votes/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
+      });
+      const after = await refresh();
+      if (after) route(after);
+    } catch {
+      // ignore; the poll loop retries
+    } finally {
+      setResolving(false);
+    }
+  }, [resolving, sessionId, refresh, route]);
 
   // Refine lives in the reflection step now (per-idea), not as a vote card, so
   // the cards are exactly the bucketed options.
@@ -227,6 +262,20 @@ export function DotVotePanel({
           );
         })}
       </div>
+
+      {isHost ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={resolveNow}
+            disabled={resolving}
+            className="rounded-xl bg-[#1a1a1a] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-black disabled:opacity-60"
+            style={{ fontFamily: "var(--font-public-sans)" }}
+          >
+            {resolving ? "Deciding…" : "Decide now"}
+          </button>
+        </div>
+      ) : null}
 
       <DotsLeft left={left} total={dotsTotal} />
     </div>
