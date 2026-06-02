@@ -15,6 +15,7 @@ import {
   insertParticipant,
   insertReflection,
   insertVote,
+  loadReflectionIdeas,
   loadSession,
   persistSession,
   refineRound,
@@ -487,20 +488,32 @@ export async function resolveVotes(
 
 // ── Dot voting ───────────────────────────────────────────────────────────────
 
-// Turn this round's written reflections into option cards. Idempotent: returns
-// existing options if already generated. Empty array if nobody has written yet.
+// Turn this round's ideas into option cards by bucketing aligned ideas across
+// people. Idempotent: returns existing options if already generated. Empty array
+// if nobody has written yet.
 export async function ensureOptions(sessionId: string): Promise<JamOption[] | null> {
   const session = await getSession(sessionId);
   if (!session) return null;
   if (session.options && session.options.length > 0) return session.options;
-  const written = (session.reflections ?? []).filter(
-    (r) => !r.passed && r.text.trim().length > 0
-  );
-  if (written.length === 0) return [];
+
+  // Prefer the per-idea rows (3-takes-per-person); each idea is one clustering
+  // entry so the AI buckets aligned ideas across people. Fall back to the joined
+  // per-person reflection text for sessions created before the 3-ideas change.
+  const round = currentRound(session);
+  const ideaRows = await loadReflectionIdeas(sessionId, round);
+  const nameById = new Map(session.participants.map((p) => [p.id, p.name]));
+  const entries = ideaRows.length
+    ? ideaRows
+        .filter((i) => i.text.trim().length > 0)
+        .map((i) => ({ name: nameById.get(i.participantId) ?? "Someone", text: i.text }))
+    : (session.reflections ?? [])
+        .filter((r) => !r.passed && r.text.trim().length > 0)
+        .map((r) => ({ name: r.name, text: r.text }));
+  if (entries.length === 0) return [];
   const { proposeOptions } = await import("./cluster");
   const proposed = await proposeOptions(
     session.topic,
-    session.reflections ?? [],
+    entries,
     session.summary,
     session.refineContext
   );

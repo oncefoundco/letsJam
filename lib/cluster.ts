@@ -103,31 +103,33 @@ const OptionsSchema = z.object({
   ),
 });
 
-const OPTIONS_SYSTEM_PROMPT = `You read a team's PRIVATE written reflections on a strategic question. Each reflection is one participant's proposed direction for what the team should do. Turn them into a set of distinct OPTION CARDS the room will dot-vote on.
+const OPTIONS_SYSTEM_PROMPT = `You read a team's PRIVATE ideas on a strategic question. Each line is ONE idea a participant proposed (a single person may have submitted several). Cluster ideas that ALIGN across different people into OPTION CARDS — "buckets" — the room will dot-vote on.
 
-For each option:
+For each option (bucket):
 - title: a short, concrete name for the direction (max ~8 words). Not vague.
 - body: 2-3 sentences — what the option is and the reasoning behind it.
-- attribution: whose thinking it came from, by name. e.g. "Simon's take" or "Shaped by Maya and Theo".
+- attribution: whose ideas it merges, by name. e.g. "Simon's idea" or "Shaped by Maya and Theo".
 
 Rules:
-- Produce ONE option per distinct proposal. Merge only near-identical proposals, combining their attributions.
-- Aim for 2-6 options; each must be a genuinely DIFFERENT direction, not a rephrasing.
-- Ground everything in what people actually wrote. Do not invent positions nobody raised.
+- Bucket ideas that mean the same thing into ONE card — especially when two or more DIFFERENT people proposed it — and combine their attributions.
+- Produce one card per distinct idea/bucket. Aim for 2-6 cards; each must be a genuinely DIFFERENT direction, not a rephrasing.
+- Ground everything in what people actually wrote. Do not invent ideas nobody raised.
 - Be specific and decision-oriented — these are the options the team votes between.
-- The transcript summary (if provided) is only background; the reflections are the real signal.`;
+- The transcript summary (if provided) is only background; the ideas are the real signal.`;
 
 export type ProposedOption = { title: string; body: string; attribution: string };
 
 export async function proposeOptions(
   topic: string,
-  reflections: Reflection[],
+  // One entry per idea (the 3-takes-per-person rows), each tagged with its
+  // author. The clusterer buckets aligned ideas across people into option cards.
+  entries: { name: string; text: string }[],
   summary?: SessionSummary,
   refineContext?: string[]
 ): Promise<ProposedOption[]> {
-  const written = reflections
-    .filter((r) => !r.passed && r.text.trim().length > 0)
-    .map((r) => `${r.name}: ${r.text}`)
+  const written = entries
+    .filter((e) => e.text.trim().length > 0)
+    .map((e) => `${e.name}: ${e.text}`)
     .join("\n\n");
 
   const refine =
@@ -165,7 +167,7 @@ export async function proposeOptions(
     messages: [
       {
         role: "user",
-        content: `Topic: ${topic}\n\n${context}\n\nPrivate reflections:\n${written}${refine}`,
+        content: `Topic: ${topic}\n\n${context}\n\nIdeas (one per line, tagged by author):\n${written}${refine}`,
       },
     ],
     output_config: { format: zodOutputFormat(OptionsSchema) },

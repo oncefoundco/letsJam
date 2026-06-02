@@ -305,6 +305,24 @@ export async function insertReflection(
   });
 }
 
+// Load this round's individual ideas (the 3-takes-per-person rows) for bucketing
+// into option cards. Ordered by participant then slot for stable output.
+export async function loadReflectionIdeas(
+  jamId: string,
+  round: number
+): Promise<{ participantId: string; text: string; refine: boolean }[]> {
+  const rows = await sql`
+    select participant_id, text, refine
+    from reflection_ideas
+    where jam_id = ${jamId} and round = ${round}
+    order by participant_id, idx`;
+  return rows.map((r) => ({
+    participantId: r.participant_id as string,
+    text: r.text as string,
+    refine: r.refine as boolean,
+  }));
+}
+
 // Atomically add one participant — a single INSERT, so concurrent joins can't
 // clobber each other the way a read-whole-session / rewrite-whole-session does.
 // Caller invalidates the Redis cache afterward so the next read reloads the
