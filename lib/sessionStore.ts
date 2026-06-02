@@ -424,6 +424,35 @@ export async function refineRound(jamId: string, fromRound: number): Promise<num
   return next;
 }
 
+// Diamond 1 → diamond 2: the round-1 dot vote narrows to the top-3 ideas. Bump
+// the round (concurrency-guarded), clear the round's working state, and carry the
+// 3 ideas forward as refine_context so the second round's reflection + synthesis
+// build on them. Returns the new round, or null if another client already
+// advanced. Mirrors refineRound's resets.
+export async function narrowToRound2(
+  jamId: string,
+  fromRound: number,
+  ideas: string[]
+): Promise<number | null> {
+  const next = fromRound + 1;
+  let bumped = false;
+  await sql.begin(async (tx) => {
+    const res = await tx`update jams set current_round = ${next}, status = 'active'
+                         where id = ${jamId} and current_round = ${fromRound}`;
+    if (res.count === 0) return; // another client already narrowed
+    bumped = true;
+    await tx`delete from dot_allocations where jam_id = ${jamId} and round = ${fromRound}`;
+    await tx`delete from jam_options where jam_id = ${jamId}`;
+    await tx`delete from reflections where jam_id = ${jamId}`;
+    await tx`delete from reflection_ideas where jam_id = ${jamId}`;
+    for (const reason of ideas) {
+      await tx`insert into refine_context (jam_id, from_round, reason)
+               values (${jamId}, ${fromRound}, ${reason})`;
+    }
+  });
+  return bumped ? next : null;
+}
+
 // Concurrency-safe refine used by the reflection-phase trigger: many clients may
 // hit the reflection->vote transition at once, so the round bump is conditional
 // on the round not already having moved (only one caller wins). Returns true if

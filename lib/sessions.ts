@@ -17,6 +17,7 @@ import {
   insertVote,
   loadReflectionIdeas,
   loadSession,
+  narrowToRound2,
   tryRefineRound,
   persistSession,
   refineRound,
@@ -650,10 +651,25 @@ export async function resolveDots(
   const entries = Object.entries(tally).filter(([, d]) => d > 0);
   if (entries.length === 0) return { resolution: "pending", round };
   entries.sort((a, b) => b[1] - a[1]);
+
+  // Double diamond: the FIRST dot vote (diamond 1) narrows to the top 3 ideas
+  // rather than deciding a winner. Those 3 carry into diamond 2 (second
+  // reflection + synthesis build on them); the round advances and poll-based
+  // routing returns everyone to the reflection step. Round 2+ converges on a
+  // single winner below.
+  if (round < 2) {
+    const topIds = new Set(entries.slice(0, 3).map(([id]) => id));
+    const top3 = (session.options ?? []).filter((o) => topIds.has(o.id));
+    const ideaLines = top3.map((o) => (o.body ? `${o.title} — ${o.body}` : o.title));
+    const next = await narrowToRound2(sessionId, round, ideaLines);
+    await kv.del(sessionKey(sessionId));
+    return { resolution: "refining", round: next ?? round + 1 };
+  }
+
   const [topId, topDots] = entries[0];
   const topTie = entries.filter(([, d]) => d === topDots).length > 1;
 
-  // Refine when the refine card leads, or the top real options deadlock.
+  // Diamond 2: converge. Refine again only on a genuine deadlock.
   if (topId === REFINE_OPTION_ID || topTie) {
     // Atomic round advance (clears this round's dots, options, reflections).
     const next = await refineRound(sessionId, round);
