@@ -26,15 +26,6 @@ import { getInitials, colorForName } from "@/lib/avatar";
 const acquiredTracks = new Set<MediaStreamTrack>();
 let suppressMediaAcquisition = false;
 
-// TEMPORARY diagnostics for the "camera on, no video track" bug — surfaced by the
-// debug overlay. Remove with the overlay once fixed.
-const gumStats = {
-  calls: 0, // total getUserMedia calls seen by our patch
-  suppressed: 0, // calls short-circuited because suppress flag was set
-  videoAcquired: 0, // live video tracks the real getUserMedia ever handed us
-  lastConstraints: "" as string,
-};
-
 function installMediaTracking() {
   if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
   const md = navigator.mediaDevices as MediaDevices & {
@@ -44,14 +35,7 @@ function installMediaTracking() {
   md.__jamTrackingInstalled = true;
   const orig = md.getUserMedia.bind(md);
   md.getUserMedia = async (constraints?: MediaStreamConstraints) => {
-    gumStats.calls += 1;
-    try {
-      gumStats.lastConstraints = JSON.stringify(constraints ?? {});
-    } catch {
-      gumStats.lastConstraints = "?";
-    }
     if (suppressMediaAcquisition) {
-      gumStats.suppressed += 1;
       // The room is tearing down (leave / unmount, where we set this flag before
       // leaveRoom). Don't open ANY device: return an empty stream WITHOUT calling
       // the real getUserMedia, so the camera/mic never power on during teardown.
@@ -61,7 +45,6 @@ function installMediaTracking() {
     }
     const stream = await orig(constraints);
     for (const track of stream.getTracks()) {
-      if (track.kind === "video") gumStats.videoAcquired += 1;
       acquiredTracks.add(track);
       track.addEventListener("ended", () => acquiredTracks.delete(track), {
         once: true,
@@ -389,8 +372,6 @@ function RoomInner({
       <div className="absolute inset-0">
         <VideoGrid renderParticipant={renderParticipant} enableSubgrid={false} />
       </div>
-      {/* TEMPORARY diagnostic — remove once the diamond-2 no-video bug is fixed. */}
-      <CameraDebugOverlay state={state} />
       {state.connectionStatus !== "connected" ? (
         <Placeholder label={statusLabel(state.connectionStatus)} />
       ) : null}
@@ -408,46 +389,6 @@ function RoomInner({
         }}
       />
     </RoomShell>
-  );
-}
-
-// TEMPORARY diagnostic overlay for the diamond-2 "camera on, no footage" bug.
-// Surfaces the exact Whereby runtime state on-screen (screenshot-friendly) so we
-// can see WHY there's no video without needing the dev console. Remove once fixed.
-function CameraDebugOverlay({
-  state,
-}: {
-  state: ReturnType<typeof useRoomConnection>["state"];
-}) {
-  const lp = state.localParticipant;
-  const stream = lp?.stream ?? null;
-  const vTracks = stream ? stream.getVideoTracks() : [];
-  const aTracks = stream ? stream.getAudioTracks() : [];
-  const fmt = (t: MediaStreamTrack) =>
-    `${t.readyState}${t.enabled ? "" : "/disabled"}${t.muted ? "/muted" : ""}`;
-  let camWanted = "?";
-  try {
-    camWanted = sessionStorage.getItem("jam:camera") ?? "(unset)";
-  } catch {
-    camWanted = "(err)";
-  }
-  const lines = [
-    `conn=${state.connectionStatus}`,
-    `camEnabled=${String(state.isCameraEnabled)} micEnabled=${String(state.isMicrophoneEnabled)}`,
-    `jam:camera=${camWanted}`,
-    `localParticipant=${lp ? "yes" : "NO"} lp.isVideoEnabled=${String(lp?.isVideoEnabled)}`,
-    `stream=${stream ? "yes" : "NO"} videoTracks=${vTracks.length} audioTracks=${aTracks.length}`,
-    `video=[${vTracks.map(fmt).join(", ") || "none"}]`,
-    `gUM calls=${gumStats.calls} suppressed=${gumStats.suppressed} videoAcquired=${gumStats.videoAcquired}`,
-    `suppressNow=${String(suppressMediaAcquisition)} acquiredTracks=${acquiredTracks.size} lastGUM=${gumStats.lastConstraints}`,
-    `remotes=${state.remoteParticipants?.length ?? 0} screenshares=${state.screenshares?.length ?? 0}`,
-  ];
-  return (
-    <div className="pointer-events-none absolute left-2 top-2 z-30 max-w-[95%] rounded-md bg-black/80 px-2 py-1.5 font-mono text-[10px] leading-[1.4] text-green-300">
-      {lines.map((l, i) => (
-        <div key={i}>{l}</div>
-      ))}
-    </div>
   );
 }
 
