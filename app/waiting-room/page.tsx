@@ -7,6 +7,7 @@ import { VideoPreview } from "./VideoPreviewClient";
 import { InviteModal } from "./InviteModal";
 import { JoinGate } from "./JoinGate";
 import { MainCardActions } from "./MainCardActions";
+import { StartTime } from "./StartTime";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { Logo } from "@/app/_components/Logo";
 
@@ -49,6 +50,7 @@ export default async function WaitingRoomPage({
         topic={session.topic}
         files={session.files}
         participants={session.participants}
+        createdAt={session.createdAt}
       />
       <InviteModal />
       <Suspense fallback={null}>
@@ -78,15 +80,21 @@ function Body({
   topic,
   files,
   participants,
+  createdAt,
 }: {
   sessionId: string;
   topic: string;
   files: string[];
   participants: Participant[];
+  createdAt: number;
 }) {
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
-      <MainCard sessionId={sessionId} hostId={participants[0]?.id} />
+      <MainCard
+        sessionId={sessionId}
+        hostId={participants[0]?.id}
+        createdAt={createdAt}
+      />
       <SessionSidebar
         activeStep={ACTIVE_STEP}
         topic={topic}
@@ -102,9 +110,11 @@ function Body({
 function MainCard({
   sessionId,
   hostId,
+  createdAt,
 }: {
   sessionId: string;
   hostId?: string;
+  createdAt: number;
 }) {
   return (
     <section className="flex min-w-0 flex-1 items-center justify-center">
@@ -120,7 +130,7 @@ function MainCard({
             className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
             style={{ fontFamily: "var(--font-queens)" }}
           >
-            Start time 3:30pm
+            <StartTime createdAt={createdAt} />
           </h1>
         </div>
 
