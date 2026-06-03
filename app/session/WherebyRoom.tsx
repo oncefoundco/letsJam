@@ -408,7 +408,38 @@ function renderParticipant({ participant }: { participant: ClientView }) {
     .some((t) => t.readyState === "live");
   const hasVideo = participant.isPresentation || (!!participant.isVideoEnabled && hasLiveVideo);
   if (hasVideo) return <GridVideoView />;
-  return <InitialsAvatar name={participant.displayName} />;
+  // Camera off: we draw our own colored-initials avatar instead of GridVideoView.
+  // But GridVideoView is ALSO what mounts the <audio> sink for the participant's
+  // stream — both its branches do (VideoView and, for no-video, VideoMutedIndicator
+  // each call the SDK's useAudioElement). Replacing it with a bare SVG dropped that
+  // sink, so a camera-off participant's audio — still transmitted over the peer
+  // connection — was never attached to an audio element and so never played on
+  // remote peers. THIS is the "camera off ⇒ remote hears nothing" bug: the audio
+  // track keeps publishing fine; it just had nowhere to play. Keep the avatar AND
+  // mount the audio sink so audio plays regardless of camera state.
+  return (
+    <>
+      <InitialsAvatar name={participant.displayName} />
+      <ParticipantAudio participant={participant} />
+    </>
+  );
+}
+
+// Mounts a remote participant's stream into an <audio> element so it actually plays
+// while their camera is off (and our custom avatar stands in for GridVideoView). This
+// re-creates what the SDK's VideoView / VideoMutedIndicator do internally via
+// useAudioElement. The local client is skipped — you never play your own mic back
+// (that would be echo), matching GridVideoView's `muted={participant.isLocalClient}`.
+function ParticipantAudio({ participant }: { participant: ClientView }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const stream = participant.stream ?? null;
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !stream) return;
+    if (el.srcObject !== stream) el.srcObject = stream;
+  }, [stream]);
+  if (participant.isLocalClient) return null;
+  return <audio ref={audioRef} autoPlay playsInline />;
 }
 
 function InitialsAvatar({ name }: { name: string }) {
