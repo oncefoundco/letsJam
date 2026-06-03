@@ -198,6 +198,24 @@ export async function getSession(
   return session;
 }
 
+// Read straight from Postgres (the source of truth), bypassing the cache, then
+// refresh it. getSession's cache-aside backfill has a read-after-write race: a
+// slow poll whose loadSession overlaps a writer's kv.del will kv.set its stale
+// snapshot AFTER the del, re-caching a blob that's missing the just-written rows
+// — and since nothing invalidates it again, that stale blob sticks until TTL.
+// For the polled gates that decide "is everyone in / what round is it" that race
+// is fatal (dots never sync, allIn never flips, a stopped timer gets resurrected
+// against a stale round). Those gates read through here so they always see truth;
+// the refresh keeps the cache warm for the cheap reads that can tolerate lag.
+export async function getSessionFresh(
+  id: string
+): Promise<StoredSession | undefined> {
+  const session = await loadSession(id);
+  if (!session) return undefined;
+  await kv.set(sessionKey(id), session, { ex: SESSION_TTL_SECONDS });
+  return session;
+}
+
 // Build the host participant for a brand-new room. Equivalent to addParticipant
 // on an empty session, but pure (no IO) so the create path can persist the host
 // in the same write as the room itself — saving a full read-modify-write round
@@ -305,7 +323,14 @@ export async function ensurePhaseTimer(
   phase: TimerPhase,
   durationMs: number = DEFAULT_PHASE_MS
 ): Promise<PhaseTimer | null> {
-  const session = await getSession(sessionId);
+  // Fresh read: this round number decides whether an existing (possibly ended)
+  // timer is "this phase, this round" and gets preserved, or a stale-round
+  // mismatch makes us mint a fresh RUNNING timer. If the host stops the round-2
+  // discussion timer and a stale cache still says round 1, the re-ensure fired
+  // by that same state change would resurrect a live countdown — so followers
+  // poll a clock that never hits 0 and stay stranded on the video while the host
+  // moves on. Reading the true round keeps the stopped timer preserved.
+  const session = await getSessionFresh(sessionId);
   if (!session) return null;
   const round = currentRound(session);
   const current = await getPhaseTimer(sessionId);
@@ -478,7 +503,10 @@ export async function resolveVotes(
   sessionId: string,
   { force = false }: { force?: boolean } = {}
 ): Promise<Resolution | null> {
-  const session = await getSession(sessionId);
+  // Fresh read for the same reason as resolveDots, plus this path does a full
+  // read-modify-write saveSession: persisting a stale blob would drop any vote
+  // cast concurrently with the resolve.
+  const session = await getSessionFresh(sessionId);
   if (!session) return null;
   const round = currentRound(session);
 
@@ -690,7 +718,10 @@ export async function resolveDots(
   sessionId: string,
   { force = false }: { force?: boolean } = {}
 ): Promise<DotResolution | null> {
-  const session = await getSession(sessionId);
+  // Fresh read: the allIn gate below (done.length >= total) must see every
+  // participant's dots, not a poisoned cache, or the host's auto-resolve never
+  // fires even though GET /votes told it everyone was in.
+  const session = await getSessionFresh(sessionId);
   if (!session) return null;
   const round = currentRound(session);
 

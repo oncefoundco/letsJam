@@ -235,25 +235,26 @@ export function DotVotePanel({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => {
-          // Show my own dots optimistically the instant I click, instead of
-          // waiting for the POST + refresh round-trip. Others' dots come from
-          // the server; my dots are rendered from local `alloc` in my color.
-          // Avatar colors are distinct per participant, so dropping my color
-          // from the server list and re-adding my local count can't double up.
+          // The server list is authoritative for ALL dots (mine included, once
+          // persisted). We must NOT filter it by my color to splice my own back
+          // in: avatar colors aren't guaranteed unique (palette exhaustion / a
+          // near-simultaneous join), so a same-color teammate's dots would
+          // vanish. Instead, only ADD the dots I've allocated locally but the
+          // server hasn't recorded yet (alloc minus my persisted `mine`), so a
+          // just-clicked dot shows instantly without ever hiding anyone or
+          // double-counting. Removals reconcile on the next refresh.
           const serverDots = status?.dotsByOption?.[card.id] ?? [];
-          const others = meColor
-            ? serverDots.filter((c) => c !== meColor)
-            : serverDots;
-          const myDots = Array<string>(alloc[card.id] ?? 0).fill(
-            meColor ?? "#62a1f1"
-          );
+          const serverMine =
+            status?.mine?.find((m) => m.optionId === card.id)?.dots ?? 0;
+          const pendingMine = Math.max(0, (alloc[card.id] ?? 0) - serverMine);
+          const myDots = Array<string>(pendingMine).fill(meColor ?? "#62a1f1");
           return (
             <OptionCard
               key={card.id}
               title={card.title}
               body={card.body}
               attribution={card.attribution}
-              dots={[...others, ...myDots]}
+              dots={[...serverDots, ...myDots]}
               mine={alloc[card.id] ?? 0}
               canAdd={left > 0}
               onAdd={() => bump(card.id, 1)}
