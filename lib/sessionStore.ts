@@ -364,22 +364,63 @@ export async function setStartedAt(jamId: string): Promise<number | null> {
   return rows[0] ? ms(rows[0].started_at) ?? null : null;
 }
 
+// Retry a transient DB op a few times. The Sydney pooler can't pipeline and
+// drops idle connections, so a write occasionally fails on a cold/closed
+// connection or a momentary timeout — exactly the flaky "Failed (500)" the dot
+// vote was hitting. Only wrap operations that are safe to re-run (idempotent),
+// since a retried attempt may run after a partial-but-rolled-back first try.
+async function withDbRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 120 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 // Atomically replace one participant's dot allocations for a round (like
 // insertVote). Caller invalidates the cache afterward.
+//
+// The whole transaction is delete-then-(bulk)insert of this participant's full
+// allocation, so it's idempotent — safe to retry on a transient pooler failure
+// (sql.begin rolls back a failed attempt, so a retry starts clean). The inserts
+// are collapsed into ONE multi-row statement to minimize round-trips through the
+// non-pipelining pooler, which is where the intermittent 500s came from.
 export async function setDotAllocations(
   jamId: string,
   round: number,
   participantId: string,
   allocations: { optionId: string; dots: number }[]
 ): Promise<void> {
-  await sql.begin(async (tx) => {
-    await tx`delete from dot_allocations
-             where jam_id = ${jamId} and participant_id = ${participantId} and round = ${round}`;
-    for (const a of allocations) {
-      await tx`insert into dot_allocations (jam_id, participant_id, round, option_id, dots)
-               values (${jamId}, ${participantId}, ${round}, ${a.optionId}, ${a.dots})`;
-    }
-  });
+  await withDbRetry(() =>
+    sql.begin(async (tx) => {
+      await tx`delete from dot_allocations
+               where jam_id = ${jamId} and participant_id = ${participantId} and round = ${round}`;
+      if (allocations.length) {
+        const rows = allocations.map((a) => ({
+          jam_id: jamId,
+          participant_id: participantId,
+          round,
+          option_id: a.optionId,
+          dots: a.dots,
+        }));
+        await tx`insert into dot_allocations ${tx(
+          rows,
+          "jam_id",
+          "participant_id",
+          "round",
+          "option_id",
+          "dots"
+        )}`;
+      }
+    })
+  );
 }
 
 // Insert the round's option cards once. Idempotent: skips if any already exist
