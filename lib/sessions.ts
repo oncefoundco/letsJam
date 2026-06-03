@@ -312,9 +312,17 @@ export async function ensurePhaseTimer(
   if (
     current &&
     (current as StoredTimer).round === round &&
-    current.phase === phase &&
-    current.endedAt == null
+    current.phase === phase
   ) {
+    // Same round + phase: keep whatever's there — including an ended
+    // (host-Stopped) timer. Recreating an ended timer here would resurrect a
+    // fresh countdown and silently undo the host's Stop. That was the bug where
+    // only the host advanced to self-reflection: the host's self-healing
+    // re-ensure (fired by the same state update that set endedAt) re-created a
+    // running timer, so everyone else kept polling a live clock and never
+    // navigated. A new round or phase still mismatches and starts fresh below,
+    // and an expired key (current == null) is still re-created — so the
+    // round-transition self-healing stays intact.
     return current;
   }
   const timer: StoredTimer = {
