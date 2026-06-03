@@ -431,6 +431,15 @@ export async function insertOptions(
   options: JamOption[]
 ): Promise<void> {
   await sql.begin(async (tx) => {
+    // Serialize concurrent writers for this (jam, round). Every client that
+    // lands on /vote before options exist POSTs /synthesize, so several calls
+    // run at once. Under READ COMMITTED the existence check below locks nothing
+    // (the rows don't exist yet) and there's no unique constraint, so each
+    // concurrent transaction would see zero rows and insert its own full set —
+    // surfacing as DUPLICATED option cards. The advisory lock makes the check
+    // race-free: the first writer inserts and commits; the rest block, then see
+    // the rows and bail.
+    await tx`select pg_advisory_xact_lock(hashtextextended(${`options:${jamId}:${round}`}, 0))`;
     const existing = await tx`select 1 from jam_options where jam_id = ${jamId} and round = ${round} limit 1`;
     if (existing.length) return;
     for (const [i, o] of options.entries()) {
