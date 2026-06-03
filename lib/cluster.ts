@@ -103,18 +103,18 @@ const OptionsSchema = z.object({
   ),
 });
 
-const OPTIONS_SYSTEM_PROMPT = `You read a team's PRIVATE ideas on a strategic question. Each line is ONE idea a participant proposed (a single person may have submitted several). Cluster ideas that ALIGN across different people into OPTION CARDS — "buckets" — the room will dot-vote on.
+const OPTIONS_SYSTEM_PROMPT = `You are given a team's PRIVATE ideas on a strategic question. Each line is ONE idea a participant proposed (a single person may have submitted several). Your job is to faithfully turn EVERY idea into OPTION CARDS the room will dot-vote on — bucketing together only the ideas that genuinely say the same thing.
+
+Your main job is FIDELITY, not rewriting:
+- Go through every single idea from every person. Each distinct idea must show up as a card. Do not drop, skip, or silently absorb anyone's idea.
+- Bucket two or more ideas into ONE card ONLY when they truly mean the same thing — especially when DIFFERENT people proposed the same idea. Combine their attributions. If you are unsure whether two ideas are the same, keep them as SEPARATE cards.
+- Refine only LIGHTLY: fix grammar, trim filler, and make it readable. Keep the participant's own words, phrasing, and specifics. Do NOT rewrite ideas into abstract strategy-speak, and do NOT invent reasoning, framing, or detail nobody actually wrote.
 
 For each option (bucket):
-- title: a short, concrete name for the direction (max ~8 words). Not vague.
-- body: 2-3 sentences — what the option is and the reasoning behind it.
-- attribution: whose ideas it merges, by name. e.g. "Simon's idea" or "Shaped by Maya and Theo".
+- title: a short, concrete name taken from what they actually proposed (max ~8 words). Not vague, not embellished.
+- body: 1-2 sentences that restate the idea(s) in the participant's own terms. If the card merges several people's ideas, reflect what each contributed. No invented rationale.
+- attribution: whose idea(s) it is, by name. e.g. "Simon's idea" or "Maya and Theo".
 
-Rules:
-- Bucket ideas that mean the same thing into ONE card — especially when two or more DIFFERENT people proposed it — and combine their attributions.
-- Produce one card per distinct idea/bucket. Aim for 2-6 cards; each must be a genuinely DIFFERENT direction, not a rephrasing.
-- Ground everything in what people actually wrote. Do not invent ideas nobody raised.
-- Be specific and decision-oriented — these are the options the team votes between.
 - The transcript summary (if provided) is only background; the ideas are the real signal.`;
 
 export type ProposedOption = { title: string; body: string; attribution: string };
@@ -136,7 +136,7 @@ export async function proposeOptions(
     refineContext && refineContext.length > 0
       ? `\n\nThe previous round was sent back to refine. What was missing:\n${refineContext.join(
           "\n"
-        )}\nMake the options genuinely sharper and address these gaps.`
+        )}\nAddress these gaps using what people wrote this round — still keep every distinct idea and don't over-polish.`
       : "";
 
   const context = summary
@@ -173,5 +173,7 @@ export async function proposeOptions(
     output_config: { format: zodOutputFormat(OptionsSchema) },
   });
 
-  return (response.parsed_output?.options ?? []).slice(0, 6);
+  // Cap defensively so the vote grid stays usable, but high enough that we
+  // aren't forcing genuinely distinct ideas to be merged away.
+  return (response.parsed_output?.options ?? []).slice(0, 10);
 }
