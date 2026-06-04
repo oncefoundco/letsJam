@@ -56,6 +56,23 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-background text-foreground">
         {children}
+
+        {/* Corner-rounding filter for the Morph Train loader (app/_components/
+            MorphTrain.tsx): blur, then re-sharpen the alpha so straight edges
+            stay crisp while the sharp points (triangle/star) come out rounded.
+            Mounted once here so it's available app-wide without duplicate IDs. */}
+        <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
+          <defs>
+            <filter id="mt-round">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2.6" result="b" />
+              <feColorMatrix
+                in="b"
+                type="matrix"
+                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
+              />
+            </filter>
+          </defs>
+        </svg>
       </body>
     </html>
   );

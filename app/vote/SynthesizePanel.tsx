@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { MorphTrain } from "@/app/_components/MorphTrain";
 
 type State =
   | { kind: "working" }
@@ -50,7 +51,7 @@ export function SynthesizePanel({ sessionId }: { sessionId: string }) {
     >
       {state.kind === "working" ? (
         <>
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-black/20 border-t-[#e85d3c]" />
+          <MorphTrain size={18} className="mb-1" />
           <p className="text-[15px] text-[#1a1a1a]">Reading the room…</p>
           <p className="text-[13px] text-black/55">
             Turning everyone&apos;s reflections into options to vote on.

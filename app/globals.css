@@ -61,3 +61,34 @@ body {
 .heading-display-italic {
   font-style: italic;
 }
+
+/*
+ * Morph Train loading animation. Each tile runs this keyframe (staggered) to
+ * sweep a wave of shapes across the row. Every shape is a 12-vertex polygon
+ * (same count + winding) so the browser interpolates one into the next.
+ * Paired with the #mt-round SVG filter in the root layout, which rounds the
+ * sharp points. Used by app/_components/MorphTrain.tsx.
+ */
+@keyframes mt-morph {
+  0% {
+    clip-path: polygon(50% 0%, 75% 0%, 100% 0%, 100% 33.3%, 100% 66.7%, 100% 100%, 66.7% 100%, 33.3% 100%, 0% 100%, 0% 66.7%, 0% 33.3%, 0% 0%);
+  }
+  16.6% {
+    clip-path: polygon(50% 0%, 75% 6.7%, 93.3% 25%, 100% 50%, 93.3% 75%, 75% 93.3%, 50% 100%, 25% 93.3%, 6.7% 75%, 0% 50%, 6.7% 25%, 25% 6.7%);
+  }
+  33.3% {
+    clip-path: polygon(50% 0%, 62.5% 25%, 75% 50%, 87.5% 75%, 100% 100%, 66.7% 100%, 33.3% 100%, 0% 100%, 12.5% 75%, 25% 50%, 37.5% 25%, 43.75% 12.5%);
+  }
+  50% {
+    clip-path: polygon(50% 0%, 66.7% 16.7%, 83.3% 33.3%, 100% 50%, 83.3% 66.7%, 66.7% 83.3%, 50% 100%, 33.3% 83.3%, 16.7% 66.7%, 0% 50%, 16.7% 33.3%, 33.3% 16.7%);
+  }
+  66.6% {
+    clip-path: polygon(50% 0%, 61% 31%, 93.3% 25%, 72% 50%, 93.3% 75%, 61% 69%, 50% 100%, 39% 69%, 6.7% 75%, 28% 50%, 6.7% 25%, 39% 31%);
+  }
+  83.3% {
+    clip-path: polygon(33.3% 0%, 66.7% 0%, 66.7% 33.3%, 100% 33.3%, 100% 66.7%, 66.7% 66.7%, 66.7% 100%, 33.3% 100%, 33.3% 66.7%, 0% 66.7%, 0% 33.3%, 33.3% 33.3%);
+  }
+  100% {
+    clip-path: polygon(50% 0%, 75% 0%, 100% 0%, 100% 33.3%, 100% 66.7%, 100% 100%, 66.7% 100%, 33.3% 100%, 0% 100%, 0% 66.7%, 0% 33.3%, 0% 0%);
+  }
+}

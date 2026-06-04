@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Outcome, Perspective, VoteChoice } from "@/lib/sessions";
 import { useSessionChannel } from "@/lib/realtime";
+import { MorphTrain } from "@/app/_components/MorphTrain";
 
 // Realtime Broadcast drives sync now; this is only a safety net for dropped
 // websockets / missed messages / reconnects, so it can be slow.
@@ -213,7 +214,7 @@ export function VotePanel({
         className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl bg-[#f5f5f5] p-12 text-center"
         style={{ fontFamily: "var(--font-public-sans)" }}
       >
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-black/20 border-t-[#e85d3c]" />
+        <MorphTrain size={18} className="mb-1" />
         <p className="text-[15px] text-[#1a1a1a]">
           {myChoice === "refine" ? "Refine requested" : "Vote in"} — waiting for
           others…

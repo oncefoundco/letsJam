@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { MorphTrain } from "@/app/_components/MorphTrain";
 
 const POLL_MS = 3000;
 
@@ -212,7 +213,7 @@ export function ReflectionForm({
     return (
       <div className="flex flex-col gap-6">
         <div className="flex h-[342px] flex-col items-center justify-center gap-4 rounded-2xl bg-[#f5f5f5] p-8 text-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-black/20 border-t-[#e85d3c]" />
+          <MorphTrain size={18} className="mb-1" />
           <p
             className="text-[15px] text-[#1a1a1a]"
             style={{ fontFamily: "var(--font-public-sans)" }}
