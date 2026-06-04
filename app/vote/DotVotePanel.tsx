@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type JamOption } from "@/lib/voting";
+import { useSessionChannel } from "@/lib/realtime";
 
-const POLL_MS = 3000;
+// Realtime Broadcast drives sync now; this is only a safety net for dropped
+// websockets / missed messages / reconnects, so it can be slow.
+const FALLBACK_POLL_MS = 15000;
 
 type DotStatus = {
   round: number;
@@ -112,29 +115,47 @@ export function DotVotePanel({
     })();
   }, [meId, refresh, route]);
 
-  // Poll for others' dots + resolution. Host nudges resolve once everyone's in.
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      const data = await refresh();
-      if (cancelled || !data) return;
-      if (route(data)) return;
-      if (isHost && data.allIn && !data.decided && data.round === round) {
-        await fetch(`/api/sessions/${sessionId}/votes/resolve`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        }).catch(() => {});
-        const after = await refresh();
-        if (after && !cancelled) route(after);
-      }
-    };
-    const handle = setInterval(tick, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(handle);
-    };
+  // broadcast() comes from the channel hook below, but sync() (the hook's own
+  // handler) needs to call it — hold it in a ref to break the cycle.
+  const broadcastRef = useRef<(round: number) => void>(() => {});
+
+  // Pull fresh state, navigate if the round moved on, and — if I'm the host —
+  // nudge resolution once everyone's dots are in. Used by both the Realtime
+  // handler and the slow fallback poll. resolve is idempotent and route() guards
+  // against double-navigation, so it's safe to call from either trigger.
+  const sync = useCallback(async () => {
+    const data = await refresh();
+    if (!data) return;
+    if (route(data)) return;
+    if (isHost && data.allIn && !data.decided && data.round === round) {
+      await fetch(`/api/sessions/${sessionId}/votes/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }).catch(() => {});
+      // Tell the room the round resolved so everyone navigates without waiting
+      // for their fallback poll.
+      broadcastRef.current(round);
+      const after = await refresh();
+      if (after) route(after);
+    }
   }, [refresh, route, isHost, round, sessionId]);
+
+  // Realtime: a peer's vote (or a resolution) pings the channel → refetch once.
+  // Host auto-resolve now fires from here instead of the old 3s poll tick.
+  const broadcast = useSessionChannel(sessionId, sync);
+  useEffect(() => {
+    broadcastRef.current = broadcast;
+  }, [broadcast]);
+
+  // Safety-net poll for dropped/missed websocket messages. Keeps the page in
+  // sync even if Realtime never connects — just on a slow cadence.
+  useEffect(() => {
+    const handle = setInterval(() => {
+      void sync();
+    }, FALLBACK_POLL_MS);
+    return () => clearInterval(handle);
+  }, [sync]);
 
   const persist = useCallback(
     // `prev` is the allocation to roll back to if the save fails — without it a
@@ -163,6 +184,9 @@ export function DotVotePanel({
         }
         setError(null);
         refresh();
+        // Notify the room so everyone refetches instantly instead of waiting on
+        // the slow fallback poll.
+        broadcast(round);
       } catch (err) {
         setAlloc(prev);
         setError(
@@ -172,7 +196,7 @@ export function DotVotePanel({
         );
       }
     },
-    [meId, sessionId, refresh]
+    [meId, sessionId, refresh, broadcast, round]
   );
 
   const bump = useCallback(
@@ -206,6 +230,8 @@ export function DotVotePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ force: true }),
       });
+      // Tell the room the round resolved so participants navigate immediately.
+      broadcast(round);
       const after = await refresh();
       if (after) route(after);
     } catch {
@@ -213,7 +239,7 @@ export function DotVotePanel({
     } finally {
       setResolving(false);
     }
-  }, [resolving, sessionId, refresh, route]);
+  }, [resolving, sessionId, refresh, route, broadcast, round]);
 
   // Refine lives in the reflection step now (per-idea), not as a vote card, so
   // the cards are exactly the bucketed options.
