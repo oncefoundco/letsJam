@@ -43,7 +43,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
   if (!jam) return null;
 
   const round = jam.current_round;
-  const [participants, files, reflections, perspectives, votes, refine, outcome, summary, options, dots, decision] =
+  const [participants, files, reflections, perspectives, votes, refine, outcome, options, dots, decision] =
     await Promise.all([
       sql`select id, name, color, joined_at from jam_participants where jam_id = ${id} order by joined_at asc`,
       sql`select name from jam_files where jam_id = ${id} order by created_at asc`,
@@ -52,7 +52,6 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
       sql`select participant_id, choice, reason, round, voted_at from votes where jam_id = ${id} order by voted_at asc`,
       sql`select reason from refine_context where jam_id = ${id} order by created_at asc`,
       sql`select round, choice, perspective_id from outcomes where jam_id = ${id} and round = ${round}`,
-      sql`select decisions, open_questions, differences from jam_summaries where jam_id = ${id} order by created_at desc limit 1`,
       sql`select id, title, body, attribution, author_id from jam_options where jam_id = ${id} and round = ${round} order by position asc`,
       sql`select participant_id, option_id, dots, round from dot_allocations where jam_id = ${id}`,
       sql`select round, option_id from jam_decisions where jam_id = ${id} and round = ${round}`,
@@ -132,13 +131,6 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
     createdAt: ms(jam.created_at)!,
     startedAt: ms(jam.started_at) ?? undefined,
     participants: participantList,
-    summary: summary[0]
-      ? {
-          decisions: (summary[0].decisions as string[]) ?? [],
-          openQuestions: (summary[0].open_questions as string[]) ?? [],
-          differences: (summary[0].differences as string[]) ?? [],
-        }
-      : undefined,
     reflections: reflectionList,
     perspectives: perspectiveList.length ? perspectiveList : undefined,
     round,
@@ -182,7 +174,6 @@ export async function persistSession(s: StoredSession): Promise<void> {
     await tx`delete from votes where jam_id = ${s.id}`;
     await tx`delete from reflections where jam_id = ${s.id}`;
     await tx`delete from refine_context where jam_id = ${s.id}`;
-    await tx`delete from jam_summaries where jam_id = ${s.id}`;
     await tx`delete from jam_files where jam_id = ${s.id}`;
     await tx`delete from perspectives where jam_id = ${s.id}`;
     await tx`delete from jam_participants where jam_id = ${s.id}`;
@@ -208,10 +199,6 @@ export async function persistSession(s: StoredSession): Promise<void> {
     }
     for (const reason of s.refineContext ?? []) {
       await tx`insert into refine_context (jam_id, from_round, reason) values (${s.id}, ${round}, ${reason})`;
-    }
-    if (s.summary) {
-      await tx`insert into jam_summaries (jam_id, round, decisions, open_questions, differences)
-               values (${s.id}, ${null}, ${s.summary.decisions}, ${s.summary.openQuestions}, ${s.summary.differences})`;
     }
     if (s.outcome) {
       await tx`
@@ -523,11 +510,4 @@ export async function tryRefineRound(
     await tx`delete from reflection_ideas where jam_id = ${jamId}`;
   });
   return bumped;
-}
-
-// Reverse lookup for the Whereby webhook (replaces the Redis room:* index).
-export async function sessionIdByRoomName(roomName: string): Promise<string | null> {
-  const rows = await sql<{ id: string }[]>`
-    select id from jams where whereby_room_name = ${roomName} limit 1`;
-  return rows[0]?.id ?? null;
 }

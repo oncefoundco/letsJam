@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   createSession,
   createWherebyRoom,
-  linkRoomToSession,
   makeHostParticipant,
 } from "@/lib/sessions";
 import { createClient } from "@/lib/supabase/server";
@@ -51,23 +50,18 @@ export async function POST(req: Request) {
     const host = makeHostParticipant(hostName, hostColor);
 
     const id = crypto.randomUUID();
-    // Persist the room with the host already in it (single-statement insert),
-    // and write the webhook reverse-index, concurrently — they're independent.
-    await Promise.all([
-      createSession({
-        id,
-        topic,
-        files,
-        roomUrl,
-        hostRoomUrl,
-        roomName,
-        createdAt: Date.now(),
-        participants: [host],
-        reflections: [],
-      }),
-      // Reverse index so the transcription webhook (which only knows roomName) finds us.
-      linkRoomToSession(roomName, id),
-    ]);
+    // Persist the room with the host already in it (single-statement insert).
+    await createSession({
+      id,
+      topic,
+      files,
+      roomUrl,
+      hostRoomUrl,
+      roomName,
+      createdAt: Date.now(),
+      participants: [host],
+      reflections: [],
+    });
     return NextResponse.json({ id, host });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

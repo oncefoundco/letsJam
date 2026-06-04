@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  getSession,
-  type Participant,
-  type SessionSummary,
-} from "@/lib/sessions";
+import { getSession, type Participant } from "@/lib/sessions";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { SessionTimerControls } from "@/app/_components/SessionTimerControls";
 import { Logo } from "@/app/_components/Logo";
@@ -40,7 +36,6 @@ export default async function SelfReflectionPage({
         topic={session.topic}
         files={session.files}
         participants={session.participants}
-        summary={session.summary}
         refineContext={session.refineContext}
         hostId={session.participants[0]?.id}
       />
@@ -76,7 +71,6 @@ function Body({
   topic,
   files,
   participants,
-  summary,
   refineContext,
   hostId,
 }: {
@@ -84,7 +78,6 @@ function Body({
   topic: string;
   files: string[];
   participants: Participant[];
-  summary?: SessionSummary;
   refineContext?: string[];
   hostId?: string;
 }) {
@@ -93,7 +86,6 @@ function Body({
       <MainCard
         sessionId={sessionId}
         topic={topic}
-        summary={summary}
         hostId={hostId}
         single={!!refineContext && refineContext.length > 0}
       />
@@ -101,9 +93,7 @@ function Body({
         activeStep={ACTIVE_STEP}
         topic={topic}
         decisions={
-          refineContext && refineContext.length > 0
-            ? refineContext
-            : summary?.decisions
+          refineContext && refineContext.length > 0 ? refineContext : undefined
         }
         files={files}
         sessionId={sessionId}
@@ -118,13 +108,11 @@ function Body({
 function MainCard({
   sessionId,
   topic,
-  summary,
   hostId,
   single,
 }: {
   sessionId: string;
   topic: string;
-  summary?: SessionSummary;
   hostId?: string;
   single?: boolean;
 }) {
@@ -145,8 +133,6 @@ function MainCard({
           {topic}
         </h1>
 
-        <SummarySnippets summary={summary} />
-
         <ReflectionForm
           sessionId={sessionId}
           onwardHref={onwardHref}
@@ -155,46 +141,6 @@ function MainCard({
         />
       </div>
     </section>
-  );
-}
-
-function SummarySnippets({ summary }: { summary?: SessionSummary }) {
-  if (!summary) return null;
-  const groups: { label: string; items: string[] }[] = [
-    { label: "Decisions", items: summary.decisions },
-    { label: "Open questions", items: summary.openQuestions },
-    { label: "Where you differed", items: summary.differences },
-  ].filter((g) => g.items.length > 0);
-
-  if (groups.length === 0) return null;
-
-  return (
-    <div
-      className="flex flex-col gap-4 rounded-2xl bg-[#f5f5f5] p-4"
-      style={{ fontFamily: "var(--font-public-sans)" }}
-    >
-      <p className="text-[12px] font-medium uppercase tracking-wide text-black/50">
-        Meeting summary
-      </p>
-      {groups.map((group) => (
-        <div key={group.label} className="flex flex-col gap-2">
-          <p className="text-[12px] font-medium leading-none text-[#e85d3c]">
-            {group.label}
-          </p>
-          <ul className="flex flex-col gap-1.5">
-            {group.items.map((item, idx) => (
-              <li
-                key={idx}
-                className="flex gap-2 text-[13px] leading-snug text-[#1a1a1a]"
-              >
-                <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-black/30" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
   );
 }
 

@@ -49,7 +49,7 @@ export default async function VotePage({
         decisions={
           session.refineContext && session.refineContext.length > 0
             ? session.refineContext
-            : session.summary?.decisions
+            : undefined
         }
       />
     </div>

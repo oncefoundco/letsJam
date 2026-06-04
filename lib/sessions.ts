@@ -21,7 +21,6 @@ import {
   tryRefineRound,
   persistSession,
   refineRound,
-  sessionIdByRoomName,
   setDecision,
   setDotAllocations,
   setStartedAt,
@@ -41,12 +40,6 @@ export type Participant = {
   name: string;
   bg: string;
   joinedAt: number;
-};
-
-export type SessionSummary = {
-  decisions: string[];
-  openQuestions: string[];
-  differences: string[];
 };
 
 export type Reflection = {
@@ -99,7 +92,6 @@ export type StoredSession = {
   // countdown shown on every client in the waiting room.
   startedAt?: number;
   participants: Participant[];
-  summary?: SessionSummary;
   reflections: Reflection[];
   perspectives?: Perspective[];
   // Voting state. round starts at 1; a refine result bumps it and re-opens reflection.
@@ -121,31 +113,6 @@ export type StoredSession = {
 
 function sessionKey(id: string) {
   return `session:${id}`;
-}
-
-function normalizeRoomName(roomName: string) {
-  return roomName.replace(/^\/+|\/+$/g, "");
-}
-
-function roomKey(roomName: string) {
-  return `room:${normalizeRoomName(roomName)}`;
-}
-
-// Reverse index so the Whereby webhook (which only knows roomName) can find our session.
-export async function linkRoomToSession(
-  roomName: string,
-  sessionId: string
-): Promise<void> {
-  await kv.set(roomKey(roomName), sessionId, { ex: SESSION_TTL_SECONDS });
-}
-
-export async function getSessionIdByRoomName(
-  roomName: string
-): Promise<string | null> {
-  // Redis index first (fast); fall back to the durable jams.whereby_room_name.
-  const cached = await kv.get<string>(roomKey(roomName));
-  if (cached) return cached;
-  return sessionIdByRoomName(normalizeRoomName(roomName));
 }
 
 // Supabase (Postgres) is the durable source of truth; Redis is a cache-aside
@@ -263,17 +230,6 @@ export async function addParticipant(
   await insertParticipant(sessionId, participant, false);
   await kv.del(sessionKey(sessionId));
   return participant;
-}
-
-export async function setSummary(
-  sessionId: string,
-  summary: SessionSummary
-): Promise<boolean> {
-  const session = await getSession(sessionId);
-  if (!session) return false;
-  session.summary = summary;
-  await saveSession(session);
-  return true;
 }
 
 export async function setPerspectives(
@@ -600,7 +556,6 @@ export async function ensureOptions(sessionId: string): Promise<JamOption[] | nu
   const proposed = await proposeOptions(
     session.topic,
     entries,
-    session.summary,
     session.refineContext
   );
   const options: JamOption[] = proposed.map((o) => ({
@@ -633,7 +588,6 @@ export async function ensurePerspectives(
   const perspectives = await clusterReflections(
     session.topic,
     session.reflections ?? [],
-    session.summary,
     session.refineContext
   );
   if (perspectives.length === 0) return [];

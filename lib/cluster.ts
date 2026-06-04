@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import type { Perspective, Reflection, SessionSummary } from "./sessions";
+import type { Perspective, Reflection } from "./sessions";
 
 const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
@@ -26,13 +26,11 @@ Rules:
 - Return EXACTLY 2 paths. They must be genuinely DIFFERENT directions — not two phrasings of the same idea.
 - Ground everything in what people actually wrote. Do not invent positions nobody raised.
 - If the room largely agrees, surface the strongest path vs. its most credible alternative or the key unresolved tension.
-- Be specific and decision-oriented — these are the two options the team will vote between.
-- The transcript summary (if provided) is only background context; the reflections are the real signal to cluster.`;
+- Be specific and decision-oriented — these are the two options the team will vote between.`;
 
 export async function clusterReflections(
   topic: string,
   reflections: Reflection[],
-  summary?: SessionSummary,
   refineContext?: string[]
 ): Promise<Perspective[]> {
   const written = reflections
@@ -47,23 +45,6 @@ export async function clusterReflections(
         )}\nMake the two paths genuinely sharper and address these gaps.`
       : "";
 
-  const context = summary
-    ? [
-        "Discussion context (background only):",
-        summary.decisions.length
-          ? `Decisions: ${summary.decisions.join("; ")}`
-          : "",
-        summary.openQuestions.length
-          ? `Open questions: ${summary.openQuestions.join("; ")}`
-          : "",
-        summary.differences.length
-          ? `Differences: ${summary.differences.join("; ")}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n")
-    : "";
-
   const response = await client.messages.parse({
     model: "claude-sonnet-4-6",
     max_tokens: 2000,
@@ -77,7 +58,7 @@ export async function clusterReflections(
     messages: [
       {
         role: "user",
-        content: `Topic: ${topic}\n\n${context}\n\nPrivate reflections:\n${written}${refine}`,
+        content: `Topic: ${topic}\n\nPrivate reflections:\n${written}${refine}`,
       },
     ],
     output_config: { format: zodOutputFormat(ClusterSchema) },
@@ -113,9 +94,7 @@ Your main job is FIDELITY, not rewriting:
 For each option (bucket):
 - title: a short, concrete name taken from what they actually proposed (max ~8 words). Not vague, not embellished.
 - body: 1-2 sentences that restate the idea(s) in the participant's own terms. If the card merges several people's ideas, reflect what each contributed. No invented rationale.
-- attribution: whose idea(s) it is, by name. e.g. "Simon's idea" or "Maya and Theo".
-
-- The transcript summary (if provided) is only background; the ideas are the real signal.`;
+- attribution: whose idea(s) it is, by name. e.g. "Simon's idea" or "Maya and Theo".`;
 
 export type ProposedOption = { title: string; body: string; attribution: string };
 
@@ -124,7 +103,6 @@ export async function proposeOptions(
   // One entry per idea (the 3-takes-per-person rows), each tagged with its
   // author. The clusterer buckets aligned ideas across people into option cards.
   entries: { name: string; text: string }[],
-  summary?: SessionSummary,
   refineContext?: string[]
 ): Promise<ProposedOption[]> {
   const written = entries
@@ -139,21 +117,6 @@ export async function proposeOptions(
         )}\nAddress these gaps using what people wrote this round — still keep every distinct idea and don't over-polish.`
       : "";
 
-  const context = summary
-    ? [
-        "Discussion context (background only):",
-        summary.decisions.length ? `Decisions: ${summary.decisions.join("; ")}` : "",
-        summary.openQuestions.length
-          ? `Open questions: ${summary.openQuestions.join("; ")}`
-          : "",
-        summary.differences.length
-          ? `Differences: ${summary.differences.join("; ")}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n")
-    : "";
-
   const response = await client.messages.parse({
     model: "claude-sonnet-4-6",
     max_tokens: 2000,
@@ -167,7 +130,7 @@ export async function proposeOptions(
     messages: [
       {
         role: "user",
-        content: `Topic: ${topic}\n\n${context}\n\nIdeas (one per line, tagged by author):\n${written}${refine}`,
+        content: `Topic: ${topic}\n\nIdeas (one per line, tagged by author):\n${written}${refine}`,
       },
     ],
     output_config: { format: zodOutputFormat(OptionsSchema) },

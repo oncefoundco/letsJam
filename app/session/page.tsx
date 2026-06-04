@@ -70,7 +70,7 @@ export default async function SessionPage({
           decisions={
             session.refineContext && session.refineContext.length > 0
               ? session.refineContext
-              : session.summary?.decisions
+              : undefined
           }
           files={session.files}
           sessionId={session.id}
