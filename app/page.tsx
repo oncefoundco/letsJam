@@ -12,7 +12,7 @@ export default function Home() {
   // horizontally without creating a scroll container; overflow-hidden would
   // break the sticky pinning in PhaseWalkthrough.
   return (
-    <div className="relative overflow-x-clip bg-background">
+    <div className="lj-page-load relative overflow-x-clip bg-background">
       {/* Brand shapes: a warm spark behind the hero, a cool wash by the phase
           walkthrough. Big rounded squares rotated off-axis, per the comp.
           Desktop-only, decorative, never in the content's way. */}
