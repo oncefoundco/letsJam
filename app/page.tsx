@@ -75,24 +75,29 @@ function Hero() {
           alt="A team running a focused session on letsJam"
           fill
           sizes="(min-width: 768px) 360px, 90vw"
-          className="object-cover"
+          className="lj-zoom object-cover"
           priority
         />
       </div>
 
       <div className="flex flex-col items-center gap-[clamp(1rem,2.4vh,2rem)]">
-        <h1 className="heading-display max-w-[871px] text-center text-[40px] leading-[0.8] text-black [text-wrap:balance] sm:text-[56px] md:text-[64px] lg:text-[72px]">
+        <h1
+          className="lj-lift heading-display max-w-[871px] text-center text-[40px] leading-[0.8] text-black [text-wrap:balance] sm:text-[56px] md:text-[64px] lg:text-[72px]"
+          style={{ ["--lj-delay" as string]: "90ms" }}
+        >
           Jam is not for every meeting. <br /> But definitely for the ones that{" "} <br />
           <em className="heading-display-italic">matter</em>.
         </h1>
         <p
-          className="max-w-[601px] text-center text-[18px] leading-[1.25] tracking-[-0.18px] text-[color:var(--color-muted-ink)]"
-          style={dmSans}
+          className="lj-lift max-w-[601px] text-center text-[18px] leading-[1.25] tracking-[-0.18px] text-[color:var(--color-muted-ink)]"
+          style={{ ...dmSans, ["--lj-delay" as string]: "180ms" }}
         >
           Jam takes your team from &ldquo;what are we actually solving?&rdquo; to
           a decision everyone gets behind, in one focused session.
         </p>
-        <BeginButton />
+        <div className="lj-lift" style={{ ["--lj-delay" as string]: "260ms" }}>
+          <BeginButton />
+        </div>
       </div>
     </section>
   );

@@ -118,3 +118,42 @@ body {
     animation: none;
   }
 }
+
+/*
+ * Hero entrance: text lifts up, image settles from a slight zoom. Transform
+ * only (opacity is handled once by .lj-page-load), so individual elements
+ * never blink. from-state applies on the first painted frame, so no jump.
+ */
+@keyframes lj-lift {
+  from {
+    transform: translateY(22px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes lj-zoom {
+  from {
+    transform: scale(1.07);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.lj-lift {
+  animation: lj-lift 750ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation-delay: var(--lj-delay, 0ms);
+}
+
+.lj-zoom {
+  animation: lj-zoom 1200ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lj-lift,
+  .lj-zoom {
+    animation: none;
+  }
+}
