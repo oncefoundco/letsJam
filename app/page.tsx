@@ -69,7 +69,7 @@ function BeginButton() {
 function Hero() {
   return (
     <section className="flex min-h-[calc(100svh-75px)] flex-col items-center justify-center gap-[clamp(1.5rem,4vh,2.75rem)] px-6 pb-10 pt-4 md:px-8">
-      <div className="relative aspect-[638/517] h-[clamp(190px,36vh,360px)] max-w-full overflow-hidden rounded-[31px]">
+      <div className="relative aspect-[638/517] w-full max-w-[560px] overflow-hidden rounded-[31px] lg:h-[clamp(230px,36vh,360px)] lg:w-auto lg:max-w-none">
         <Image
           src="/landing/hero.png"
           alt="A team running a focused session on letsJam"
