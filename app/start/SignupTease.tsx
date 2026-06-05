@@ -23,7 +23,7 @@ export function SignupTease() {
             Start a New Jam
           </h2>
 
-          <Field label="Define your challenge">
+          <Field label="Describe your Jam">
             <div
               className="min-h-[180px] w-full rounded-2xl bg-[#f5f5f5] p-4 text-[15px] leading-[1.5] text-[#1a1a1a]"
               style={FONT}
@@ -33,7 +33,7 @@ export function SignupTease() {
             </div>
           </Field>
 
-          <Field label="Upload context">
+          <Field label="Any additional files with context to this challenge?">
             <div className="flex flex-wrap items-center gap-3">
               <span
                 className="inline-flex items-center justify-center gap-3 rounded-full bg-[#f5f5f5] p-3 text-[14px] leading-none text-black"
@@ -56,7 +56,7 @@ export function SignupTease() {
             </div>
           </Field>
 
-          <Field label="Start time">
+          <Field label="When would you like to begin?">
             <div className="flex flex-wrap items-center gap-3">
               {TEASE_TIMES.map((label) => (
                 <span
@@ -93,7 +93,7 @@ export function SignupTease() {
           </span>
         </div>
         <p className="mt-4 text-[18px] italic leading-[1.5] text-[#1a1a1a]" style={FONT}>
-          No previous jams found.
+          No jams yet. The ones you run will show up here.
         </p>
       </aside>
     </div>

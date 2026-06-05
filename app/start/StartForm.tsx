@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UploadContext } from "./UploadContext";
 
 const PLACEHOLDER =
@@ -19,6 +19,17 @@ export function StartForm() {
   const [files, setFiles] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Seed the name field from a `?topic=` hint passed by the landing-page
+  // examples (e.g. /start?topic=Resolve%20the%20pricing%20debate). Read from
+  // the URL on mount rather than useSearchParams to avoid a Suspense deopt;
+  // the user can edit or clear it freely afterward.
+  useEffect(() => {
+    const topic = new URLSearchParams(window.location.search)
+      .get("topic")
+      ?.trim();
+    if (topic) setName(topic);
+  }, []);
 
   async function startSession({ invite }: { invite?: boolean } = {}) {
     if (submitting) return;
@@ -122,13 +133,13 @@ export function StartForm() {
         ) : null}
         <div className="flex flex-col gap-4 sm:flex-row">
           <PrimaryAction onClick={() => startSession()} disabled={submitting}>
-            {submitting ? "Creating room…" : "Draft Jam"}
+            {submitting ? "Creating your jam…" : "Draft Jam"}
           </PrimaryAction>
           <PrimaryAction
             onClick={() => startSession({ invite: true })}
             disabled={submitting}
           >
-            {submitting ? "Creating room…" : "Invite team"}
+            {submitting ? "Creating your jam…" : "Invite team"}
           </PrimaryAction>
         </div>
       </div>
