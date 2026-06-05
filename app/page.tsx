@@ -82,14 +82,14 @@ function Hero() {
 
       <div className="flex flex-col items-center gap-[clamp(1rem,2.4vh,2rem)]">
         <h1
-          className="lj-lift heading-display max-w-[871px] text-center text-[40px] leading-[0.8] text-black [text-wrap:balance] sm:text-[56px] md:text-[64px] lg:text-[72px]"
+          className="lj-lift heading-display max-w-[871px] text-center text-[32px] leading-[0.8] text-black [text-wrap:balance] sm:text-[52px] md:text-[64px] lg:text-[72px]"
           style={{ ["--lj-delay" as string]: "90ms" }}
         >
           Jam is not for every meeting. <br /> But definitely for the ones that{" "} <br />
           <em className="heading-display-italic">matter</em>.
         </h1>
         <p
-          className="lj-lift max-w-[601px] text-center text-[18px] leading-[1.25] tracking-[-0.18px] text-[color:var(--color-muted-ink)]"
+          className="lj-lift max-w-[601px] text-center text-[15px] leading-[1.3] tracking-[-0.18px] text-[color:var(--color-muted-ink)] sm:text-[18px] sm:leading-[1.25]"
           style={{ ...dmSans, ["--lj-delay" as string]: "180ms" }}
         >
           Jam takes your team from &ldquo;what are we actually solving?&rdquo; to
@@ -123,7 +123,7 @@ function Promise() {
       <div className="flex w-full flex-col gap-12 rounded-[32px] bg-white p-8 md:p-16 lg:flex-row lg:items-start lg:gap-24 xl:gap-[120px] xl:p-32">
         <Reveal
           as="p"
-          className="shrink-0 text-[24px] leading-[0.8] text-black"
+          className="shrink-0 text-[20px] leading-[0.8] text-black sm:text-[24px]"
           style={publicSans}
         >
           Our promise
@@ -131,7 +131,7 @@ function Promise() {
 
         <div className="flex w-full max-w-[994px] flex-col gap-12">
           <Reveal
-            className="flex flex-col gap-6 text-[clamp(1.375rem,2.4vw,2.75rem)] leading-[1.25] tracking-[-0.01em] text-[color:var(--color-muted-ink)]"
+            className="flex flex-col gap-6 text-[clamp(1.125rem,2.4vw,2.75rem)] leading-[1.3] tracking-[-0.01em] text-[color:var(--color-muted-ink)] sm:leading-[1.25]"
             style={dmSans}
             delay={80}
           >
@@ -169,11 +169,11 @@ function Founder({ name, role }: { name: string; role: string }) {
         />
       </div>
       <div className="flex flex-col gap-1">
-        <p className="text-[24px] leading-[0.9] text-black" style={publicSans}>
+        <p className="text-[20px] leading-[0.9] text-black sm:text-[24px]" style={publicSans}>
           {name}
         </p>
         <p
-          className="text-[18px] leading-[1.2] text-[color:var(--color-muted-ink)]"
+          className="text-[16px] leading-[1.2] text-[color:var(--color-muted-ink)] sm:text-[18px]"
           style={publicSans}
         >
           {role}

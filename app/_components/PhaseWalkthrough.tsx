@@ -190,11 +190,11 @@ export function PhaseWalkthrough() {
 function PhaseText({ phase }: { phase: Phase }) {
   return (
     <div className="flex flex-col gap-3 lg:h-full lg:w-[420px] lg:shrink-0 lg:justify-between lg:gap-8">
-      <h3 className="heading-display text-[clamp(1.75rem,7vw,3.5rem)] leading-[0.85] text-black [text-wrap:balance]">
+      <h3 className="heading-display text-[clamp(1.5rem,6.5vw,3.5rem)] leading-[0.85] text-black [text-wrap:balance]">
         {phase.title}
       </h3>
       <p
-        className="max-w-[440px] text-[15px] leading-[1.4] tracking-[-0.16px] text-[color:var(--color-muted-ink)] lg:text-[18px] lg:leading-[1.25]"
+        className="max-w-[440px] text-[14px] leading-[1.4] tracking-[-0.16px] text-[color:var(--color-muted-ink)] lg:text-[18px] lg:leading-[1.25]"
         style={dmSans}
       >
         {phase.body}
