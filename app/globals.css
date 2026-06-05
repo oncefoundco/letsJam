@@ -157,3 +157,134 @@ body {
     animation: none;
   }
 }
+
+/*
+ * Logo intro splash. Plays on every landing-page load as ONE continuous
+ * gesture: the brand surface fills the screen, the logo assembles big &
+ * centered ("jam" rises, the blue "lets" pill drops in and settles its -11°
+ * tilt), then the logo flies up + scales down to land exactly on the header
+ * logo's slot — at which point the real header logo is revealed and the splash
+ * unmounts. No crossfade between two copies; the splash logo *becomes* the nav.
+ *
+ * The flight is a measured FLIP: LogoIntro reads the header logo's box and sets
+ * the start transform inline (--lj-fly-*), so the resting state is plain
+ * transform:none — landing precisely with no jump. See LogoIntro.tsx.
+ *
+ * Timeline: jam 0→500ms · pill 150→750ms · fly 760→1300ms · bg fade 800→1220ms.
+ * The hero entrance is released the instant the flight starts (transitionstart),
+ * so the page comes alive *while* the logo is descending, not after it parks.
+ */
+@keyframes lj-intro-jam {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lj-intro-pill {
+  from {
+    opacity: 0;
+    transform: translateY(-28px) rotate(7deg) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-11.02deg) scale(1);
+  }
+}
+
+@keyframes lj-intro-bg-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Opaque brand surface; fades during the descent so the page is already there
+ * when the logo lands. The logo itself sits above it and stays opaque. */
+.lj-intro__bg {
+  animation: lj-intro-bg-out 420ms ease 800ms both;
+}
+
+/* Traveling logo. Positioned (inline) exactly over the header logo's box, so
+ * transform:none == the resting slot. It starts at the big/centered transform
+ * (set inline), then .is-flying clears it, gliding to the slot after the
+ * assemble has played. */
+.lj-intro__logo {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.lj-intro__logo.is-flying {
+  transform: none !important;
+  transition: transform 540ms cubic-bezier(0.65, 0, 0.35, 1) 760ms;
+}
+
+.lj-intro__jam {
+  animation: lj-intro-jam 500ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.lj-intro__pill {
+  animation: lj-intro-pill 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 150ms both;
+}
+
+/* Hold the page's header logo invisible (but laid out, so its box stays
+ * measurable) while the splash owns the screen. JS adds this class to <html>
+ * only when the animated intro actually runs. */
+.lj-intro-active [data-logo-target] {
+  visibility: hidden;
+}
+
+/*
+ * Hold the hero entrance (lift + zoom) paused only until the logo starts
+ * flying — then it animates *during* the descent, in sync with the background
+ * fading away, so the page comes alive as the logo arrives. JS removes
+ * .lj-intro-hold on the flight's transitionstart (and keeps the separate
+ * .lj-intro-active until landing, which is what hides the header logo). The
+ * page-level fade (lj-page-load) is never paused — the surface must be solid
+ * by the time the logo lands so the header logo doesn't flicker in.
+ */
+.lj-intro-hold .lj-lift,
+.lj-intro-hold .lj-zoom {
+  animation-play-state: paused;
+}
+
+/*
+ * Reduced motion: no splash. Hide it instantly and skip every keyframe so the
+ * page is visible and interactive on the first frame. The header logo is never
+ * hidden (JS skips adding .lj-intro-active), and the fallback timer unmounts
+ * the splash.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .lj-intro {
+    display: none;
+  }
+  .lj-intro__jam,
+  .lj-intro__pill {
+    animation: none;
+  }
+}
+
+/* PageGuide card entrance: a small fade + rise when it auto-opens. */
+@keyframes lj-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lj-pop {
+  animation: lj-pop 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lj-pop {
+    animation: none;
+  }
+}

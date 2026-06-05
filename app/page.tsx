@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/app/_components/Logo";
+import { LogoIntro } from "@/app/_components/LogoIntro";
 import { PhaseWalkthrough } from "@/app/_components/PhaseWalkthrough";
 import { Reveal } from "@/app/_components/Reveal";
 
@@ -13,6 +14,7 @@ export default function Home() {
   // break the sticky pinning in PhaseWalkthrough.
   return (
     <div className="lj-page-load relative overflow-x-clip bg-background">
+      <LogoIntro />
       {/* Brand shapes: a warm spark behind the hero, a cool wash by the phase
           walkthrough. Big rounded squares rotated off-axis, per the comp.
           Desktop-only, decorative, never in the content's way. */}
@@ -49,7 +51,11 @@ export default function Home() {
 function Header() {
   return (
     <header className="flex w-full items-center justify-center px-8 py-6">
-      <Logo />
+      {/* data-logo-target: LogoIntro flies the splash logo onto this exact box,
+          then reveals it. Held invisible (laid out) while the splash plays. */}
+      <span data-logo-target className="inline-flex">
+        <Logo />
+      </span>
     </header>
   );
 }
