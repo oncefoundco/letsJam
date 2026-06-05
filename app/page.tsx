@@ -54,7 +54,7 @@ function BeginButton() {
   return (
     <Link
       href="/start"
-      className="inline-flex items-center justify-center rounded-full bg-black px-6 py-3 text-[18px] font-normal text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3c5bcb]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+      className="inline-flex items-center justify-center rounded-full bg-black px-6 py-3 text-[18px] font-normal text-white transition duration-200 ease-out will-change-transform hover:scale-[1.03] hover:bg-neutral-800 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3c5bcb]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] motion-reduce:transition-colors motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
       style={{ fontFamily: "var(--font-inter)" }}
     >
       Begin
