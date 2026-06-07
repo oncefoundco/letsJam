@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import { DM_Sans, Public_Sans, Inter } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import {
+  SITE_URL,
+  SITE_NAME,
+  SITE_TAGLINE,
+  SITE_DESCRIPTION,
+  SAME_AS,
+} from "@/lib/seo";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -38,11 +45,107 @@ const queens = localFont({
   ],
 });
 
+const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
+
 export const metadata: Metadata = {
-  title: "Together — What can we solve together?",
-  description:
-    "Together is a Neverfound venture exploring how teams collaborate with AI.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    // Child routes set their own title; Next appends the brand. e.g. a page
+    // titled "Pricing" renders "Pricing · letsJam".
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "letsJam",
+    "team decision making",
+    "decision meeting",
+    "meeting decisions software",
+    "strategic decisions",
+    "team alignment tool",
+    "AI meeting facilitation",
+    "decision room",
+  ],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  alternates: { canonical: "/" },
+  // og:image / twitter:image are supplied by app/opengraph-image.tsx and
+  // app/twitter-image.tsx (Next wires them in automatically).
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
+
+/**
+ * JSON-LD structured data. The @graph ties three entities together by @id so
+ * Google can build a single "letsJam" brand entity (and tell it apart from the
+ * other "let's jam" sites). sameAs (from lib/seo) is the disambiguation lever —
+ * fill it with real social/profile URLs to strengthen the entity.
+ */
+function StructuredData() {
+  const graph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        description: SITE_DESCRIPTION,
+        ...(SAME_AS.length > 0 ? { sameAs: SAME_AS } : {}),
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: SITE_NAME,
+        description: SITE_DESCRIPTION,
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        inLanguage: "en-US",
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${SITE_URL}/#software`,
+        name: SITE_NAME,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: SITE_URL,
+        description: SITE_DESCRIPTION,
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      // schema is static and fully controlled here — safe to inject as-is.
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }}
+    />
+  );
+}
 
 export default function RootLayout({
   children,
@@ -54,6 +157,9 @@ export default function RootLayout({
       lang="en"
       className={`${dmSans.variable} ${publicSans.variable} ${inter.variable} ${queens.variable} antialiased`}
     >
+      <head>
+        <StructuredData />
+      </head>
       <body className="min-h-screen bg-background text-foreground">
         {children}
 
