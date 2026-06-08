@@ -61,7 +61,7 @@ export function SynthesizePanel({ sessionId }: { sessionId: string }) {
         <>
           <p className="text-[15px] text-[#1a1a1a]">No reflections yet</p>
           <p className="text-[13px] text-black/55">
-            Once people submit their take in Self Reflection, the options
+            Once everyone&apos;s submitted their reflection, the options
             appear here.
           </p>
         </>

@@ -3,48 +3,49 @@ import type { Participant } from "@/lib/sessions";
 
 const FONT = { fontFamily: "var(--font-public-sans)" } as const;
 
-const STEPS = [
-  "Waiting Room",
-  "Discussion",
-  "Self Reflection",
-  "Synthesize",
-  "Vote",
-  "The call",
-];
-
 export function SessionSidebar({
-  activeStep,
   topic,
+  description,
   decisions,
   files,
   sessionId,
   participants,
   participantLabel,
-  timeline = false,
 }: {
-  activeStep: number;
+  // activeStep is still accepted (the session routes pass it) but the redesigned
+  // sidebar no longer renders a phase stepper.
+  activeStep?: number;
   topic: string;
+  // The host's "Describe your Jam" text, shown under the challenge.
+  description?: string;
   decisions?: string[];
   files: string[];
   sessionId: string;
   participants: Participant[];
   participantLabel: string;
-  // The refine page (diamond-2 reflection) shows the steps as a vertical
-  // Timeline with every label; other phases keep the compact numbered stepper.
-  timeline?: boolean;
 }) {
   return (
-    <aside className="flex w-full flex-col gap-8 rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
-      <StepIndicator activeStep={activeStep} timeline={timeline} />
-
+    <aside className="flex w-full flex-col justify-between gap-8 self-stretch rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
       <div className="flex w-full flex-col gap-6 rounded-2xl bg-[#f4f4f4] p-6">
         <div className="flex flex-col gap-3">
           <p className="text-[14px] font-medium leading-none text-black" style={FONT}>
-            Session
+            Our Challenge
           </p>
           <p className="text-[24px] leading-[1.2] text-black" style={FONT}>
             {topic}
           </p>
+          {description ? (
+            <div className="flex w-full flex-col items-center gap-3">
+              <p className="w-full text-[12px] leading-normal text-black" style={FONT}>
+                {description}
+              </p>
+              <span aria-hidden className="flex items-center gap-[3px] py-1 text-black/40">
+                <Dot />
+                <Dot />
+                <Dot />
+              </span>
+            </div>
+          ) : null}
         </div>
 
         {decisions && decisions.length > 0 ? (
@@ -74,7 +75,7 @@ export function SessionSidebar({
               className="text-[14px] font-medium leading-none text-black"
               style={FONT}
             >
-              Session Context
+              Jam Context
             </p>
             <div className="flex flex-wrap gap-2">
               {files.map((name, idx) => (
@@ -101,65 +102,8 @@ export function SessionSidebar({
   );
 }
 
-function StepIndicator({
-  activeStep,
-  timeline,
-}: {
-  activeStep: number;
-  timeline?: boolean;
-}) {
-  if (timeline) {
-    // Vertical Timeline: every step labelled, the active one highlighted.
-    return (
-      <div className="flex flex-col gap-3">
-        {STEPS.map((label, idx) => {
-          const active = idx === activeStep;
-          return (
-            <div key={label} className="flex items-center gap-3">
-              <span
-                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] leading-none ${
-                  active ? "bg-[#e85d3c] text-white" : "bg-[#f4f4f4] text-black"
-                }`}
-                style={FONT}
-              >
-                {idx + 1}
-              </span>
-              <span
-                className={`text-[14px] leading-none ${active ? "text-[#1a1a1a]" : "text-black/45"}`}
-                style={FONT}
-              >
-                {label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      {STEPS.map((label, idx) => {
-        const active = idx === activeStep;
-        return (
-          <div key={label} className="flex items-center gap-2">
-            <span
-              className={`grid h-6 w-6 place-items-center rounded-full text-[10px] leading-none ${
-                active ? "bg-[#e85d3c] text-white" : "bg-white text-black"
-              }`}
-              style={FONT}
-            >
-              {idx + 1}
-            </span>
-            {active ? (
-              <span className="text-[14px] leading-none text-[#1a1a1a]" style={FONT}>
-                {label}
-              </span>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
+function Dot() {
+  return <span className="h-[3px] w-[3px] rounded-full bg-current" />;
 }
 
 function DocIcon() {

@@ -10,6 +10,7 @@ import { MainCardActions } from "./MainCardActions";
 import { StartTime } from "./StartTime";
 import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { Logo } from "@/app/_components/Logo";
+import { PageGuide } from "@/app/_components/PageGuide";
 
 export const metadata = {
   title: "Waiting room — Jam",
@@ -48,10 +49,16 @@ export default async function WaitingRoomPage({
       <Body
         sessionId={session.id}
         topic={session.topic}
+        description={session.description}
         files={session.files}
         participants={session.participants}
         createdAt={session.createdAt}
       />
+      <PageGuide>
+        You&apos;re in the waiting room. The host starts the session once
+        everyone&apos;s here. It runs in a few short steps: talk it through,
+        reflect on your own, then vote on a direction together.
+      </PageGuide>
       <InviteModal />
       <Suspense fallback={null}>
         <JoinGate
@@ -78,12 +85,14 @@ function Header() {
 function Body({
   sessionId,
   topic,
+  description,
   files,
   participants,
   createdAt,
 }: {
   sessionId: string;
   topic: string;
+  description?: string;
   files: string[];
   participants: Participant[];
   createdAt: number;
@@ -98,6 +107,7 @@ function Body({
       <SessionSidebar
         activeStep={ACTIVE_STEP}
         topic={topic}
+        description={description}
         files={files}
         sessionId={sessionId}
         participants={participants}

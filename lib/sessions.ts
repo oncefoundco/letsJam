@@ -83,6 +83,9 @@ export type Outcome = {
 export type StoredSession = {
   id: string;
   topic: string;
+  // The host's longer "Describe your Jam" text, shown under the challenge in
+  // the session sidebar. Optional; older jams predate it.
+  description?: string;
   files: string[];
   roomUrl: string;
   hostRoomUrl: string;

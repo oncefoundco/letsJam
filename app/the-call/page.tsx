@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/sessions";
 import { Confetti } from "./Confetti";
 import { Logo } from "@/app/_components/Logo";
+import { PageGuide } from "@/app/_components/PageGuide";
 
 export const metadata = {
   title: "The call — Jam",
@@ -35,6 +36,11 @@ export default async function TheCallPage({
     <div className="relative flex min-h-screen flex-col bg-background">
       <Header />
       <Body sessionId={session.id} decision={decision} />
+      <PageGuide title="The outcome">
+        This is the call the room committed to, with the reasoning behind it.
+        It came from everyone&apos;s private thinking, combined and voted on, so
+        it&apos;s a decision the whole room owns.
+      </PageGuide>
       {decision ? <Confetti /> : null}
     </div>
   );
@@ -78,7 +84,7 @@ function MainCard({
           className="text-[14px] font-medium leading-none text-[#e96748]"
           style={{ fontFamily: "var(--font-public-sans)" }}
         >
-          The call
+          Outcome
         </p>
         <h1
           className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"

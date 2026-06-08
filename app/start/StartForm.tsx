@@ -36,13 +36,15 @@ export function StartForm() {
     setSubmitting(true);
     setError(null);
     try {
-      // The backend stores a single topic string; lead with the one-line
-      // name and fall back to the description, then the placeholder.
+      // Topic is the one-line name (fall back to the description, then the
+      // placeholder); the longer "Describe your Jam" text rides along as the
+      // description and shows under the challenge in the session sidebar.
       const topic = name.trim() || describe.trim() || PLACEHOLDER;
+      const description = describe.trim() || undefined;
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, files }),
+        body: JSON.stringify({ topic, description, files }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -132,9 +134,6 @@ export function StartForm() {
           </p>
         ) : null}
         <div className="flex flex-col gap-4 sm:flex-row">
-          <PrimaryAction onClick={() => startSession()} disabled={submitting}>
-            {submitting ? "Creating your jam…" : "Draft Jam"}
-          </PrimaryAction>
           <PrimaryAction
             onClick={() => startSession({ invite: true })}
             disabled={submitting}

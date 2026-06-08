@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 const HOST_NAME = "Simon";
 
 export async function POST(req: Request) {
-  let body: { topic?: unknown; files?: unknown };
+  let body: { topic?: unknown; description?: unknown; files?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -25,6 +25,11 @@ export async function POST(req: Request) {
   if (!topic) {
     return NextResponse.json({ error: "topic is required" }, { status: 400 });
   }
+
+  const description =
+    typeof body.description === "string" && body.description.trim().length > 0
+      ? body.description.trim()
+      : undefined;
 
   const files = Array.isArray(body.files)
     ? body.files.filter((f): f is string => typeof f === "string")
@@ -54,6 +59,7 @@ export async function POST(req: Request) {
     await createSession({
       id,
       topic,
+      description,
       files,
       roomUrl,
       hostRoomUrl,

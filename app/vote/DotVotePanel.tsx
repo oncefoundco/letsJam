@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type JamOption } from "@/lib/voting";
+import type { Participant } from "@/lib/sessions";
 import { useSessionChannel } from "@/lib/realtime";
 
 // Realtime Broadcast drives sync now; this is only a safety net for dropped
@@ -26,11 +27,13 @@ export function DotVotePanel({
   options,
   round,
   hostId,
+  participants,
 }: {
   sessionId: string;
   options: JamOption[];
   round: number;
   hostId?: string;
+  participants?: Participant[];
 }) {
   const router = useRouter();
   const [meId, setMeId] = useState<string | null>(null);
@@ -45,6 +48,13 @@ export function DotVotePanel({
   const used = Object.values(alloc).reduce((s, n) => s + n, 0);
   const left = Math.max(0, dotsTotal - used);
   const isHost = !!meId && !!hostId && meId === hostId;
+  // The dot color is the color the participant picked. Prefer the server
+  // participants list (source of truth), fall back to the locally-stashed bg,
+  // then a neutral so a dot is never invisible.
+  const myColor =
+    (meId ? participants?.find((p) => p.id === meId)?.bg : undefined) ??
+    meColor ??
+    "#cccccc";
 
   useEffect(() => {
     try {
@@ -273,7 +283,7 @@ export function DotVotePanel({
           const serverMine =
             status?.mine?.find((m) => m.optionId === card.id)?.dots ?? 0;
           const pendingMine = Math.max(0, (alloc[card.id] ?? 0) - serverMine);
-          const myDots = Array<string>(pendingMine).fill(meColor ?? "#62a1f1");
+          const myDots = Array<string>(pendingMine).fill(myColor);
           return (
             <OptionCard
               key={card.id}
@@ -304,7 +314,7 @@ export function DotVotePanel({
         </div>
       ) : null}
 
-      <DotsLeft left={left} total={dotsTotal} />
+      <DotsLeft left={left} total={dotsTotal} color={myColor} />
     </div>
   );
 }
@@ -398,7 +408,15 @@ function OptionCard({
   );
 }
 
-function DotsLeft({ left, total }: { left: number; total: number }) {
+function DotsLeft({
+  left,
+  total,
+  color,
+}: {
+  left: number;
+  total: number;
+  color: string;
+}) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-8 z-10 flex justify-center">
       <div
@@ -410,7 +428,8 @@ function DotsLeft({ left, total }: { left: number; total: number }) {
           {Array.from({ length: total }).map((_, i) => (
             <span
               key={i}
-              className={`h-2.5 w-2.5 rounded-full ${i < left ? "bg-[#62a1f1]" : "bg-white/25"}`}
+              className={`h-2.5 w-2.5 rounded-full ${i < left ? "" : "bg-white/25"}`}
+              style={i < left ? { backgroundColor: color } : undefined}
             />
           ))}
         </span>

@@ -5,6 +5,7 @@ import { Logo } from "@/app/_components/Logo";
 import { AuthGate } from "./AuthGate";
 import { SignupTease } from "./SignupTease";
 import { createClient } from "@/lib/supabase/server";
+import { PageGuide } from "@/app/_components/PageGuide";
 
 export const metadata = {
   title: "Start a New Jam — Jam",
@@ -32,6 +33,13 @@ export default async function StartSessionPage() {
       {/* Before sign-in, show a populated tease of the real screen behind the
           auth modal. Once signed in, render the live, interactive form. */}
       {authed ? <Body /> : <SignupTease />}
+      {authed ? (
+        <PageGuide>
+          Set up your Jam: name the challenge, describe it, add who&apos;s
+          joining and any files for context, then invite your team. Once
+          they&apos;re in, you&apos;ll run a short structured session together.
+        </PageGuide>
+      ) : null}
       <Suspense fallback={null}>
         <AuthGate
           authed={authed}
@@ -99,7 +107,7 @@ function PreviousJams() {
         className="mt-4 text-[18px] italic leading-[1.5] text-[#1a1a1a]"
         style={{ fontFamily: "var(--font-public-sans)" }}
       >
-        No previous jams found.
+        No jams yet. The ones you run will show up here.
       </p>
     </aside>
   );

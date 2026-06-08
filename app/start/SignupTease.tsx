@@ -72,7 +72,6 @@ export function SignupTease() {
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row">
-          <TeaseButton>Draft Jam</TeaseButton>
           <TeaseButton>Invite team</TeaseButton>
         </div>
       </section>

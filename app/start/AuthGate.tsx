@@ -120,7 +120,7 @@ export function LoginModal({ next = "/start" }: { next?: string }) {
           className="flex w-full items-center justify-center gap-3 rounded-[12px] bg-[#f5f5f5] p-3 text-[14px] text-black transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <GoogleLogo />
-          {submitting ? "Redirecting…" : "Sign up with Google"}
+          {submitting ? "Redirecting…" : "Continue with Google"}
         </button>
         {error ? (
           <p className="text-center text-[13px] text-red-600">{error}</p>
@@ -199,7 +199,7 @@ export function ProfileModal({
           <span className="text-[14px] text-black">Pick your preferred color</span>
           {full ? (
             <p className="text-[13px] text-black/50">
-              Every color is taken — this jam is already full.
+              Every color is taken. This jam is already full.
             </p>
           ) : (
             <div className="flex flex-wrap items-center gap-2">

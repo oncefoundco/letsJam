@@ -10,6 +10,7 @@ import { SessionSidebar } from "@/app/_components/SessionSidebar";
 import { SessionTimerControls } from "@/app/_components/SessionTimerControls";
 import { Logo } from "@/app/_components/Logo";
 import { ControlButton, HeaderControls } from "@/app/_components/HeaderControls";
+import { PageGuide } from "@/app/_components/PageGuide";
 
 export const metadata = {
   title: "Session — Jam",
@@ -44,6 +45,11 @@ export default async function SessionPage({
     "";
   const initialColor =
     typeof meta.color === "string" ? (meta.color as string) : undefined;
+  // The second (solution) call reuses this route; refineContext is only present
+  // in diamond 2, so it tells the stepper which "Discuss" we're on.
+  const isRound2 = Boolean(
+    session.refineContext && session.refineContext.length > 0
+  );
 
   return (
     <div className="flex min-h-screen flex-col gap-6 bg-background p-6 md:gap-8 md:p-8">
@@ -65,8 +71,9 @@ export default async function SessionPage({
       <div className="flex min-h-0 flex-1 flex-col gap-6 md:gap-8 lg:flex-row lg:items-stretch">
         <MainColumn roomUrl={session.roomUrl} sessionId={session.id} />
         <SessionSidebar
-          activeStep={1}
+          activeStep={isRound2 ? 4 : 1}
           topic={session.topic}
+          description={session.description}
           decisions={
             session.refineContext && session.refineContext.length > 0
               ? session.refineContext
@@ -78,6 +85,11 @@ export default async function SessionPage({
           participantLabel="In the room"
         />
       </div>
+      <PageGuide>
+        {isRound2
+          ? "This is the second call. Talk through the option the room chose and how to sharpen it. When the host moves on, you'll each propose your solution privately."
+          : "This is the live call. Talk the challenge through as a group. When the host moves the room on, you'll each reflect privately before anything is shared."}
+      </PageGuide>
       <Suspense fallback={null}>
         <JoinGate
           sessionId={session.id}

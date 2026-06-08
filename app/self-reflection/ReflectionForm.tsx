@@ -249,8 +249,7 @@ export function ReflectionForm({
           <textarea
             value={ideas[0].text}
             onChange={(e) => updateIdea(0, { text: e.target.value })}
-            placeholder="What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces."
-            className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none placeholder:text-[#7a7a7a]"
+            className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none"
             style={{ fontFamily: "var(--font-public-sans)" }}
           />
           <div className="mt-4 flex items-center gap-2">
@@ -261,25 +260,27 @@ export function ReflectionForm({
               className="text-[12px] text-[#7a7a7a]"
               style={{ fontFamily: "var(--font-public-sans)" }}
             >
-              Private until everyone is in
+              Stays private: only Jam&apos;s summary is shared with the room.
             </p>
           </div>
         </div>
       ) : (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         {ideas.map((idea, i) => (
-          <div
-            key={i}
-            className="flex min-h-[112px] flex-col justify-between gap-3 rounded-2xl bg-[#f5f5f5] p-4"
-          >
-            <textarea
-              value={idea.text}
-              onChange={(e) => updateIdea(i, { text: e.target.value })}
-              placeholder="What's your read on this? What would you do, and why? Be specific — your thinking is what the AI uses to find the real choice the room faces."
-              className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none placeholder:text-[#7a7a7a]"
+          <div key={i} className="flex flex-col gap-2">
+            <p
+              className="text-[14px] font-medium leading-none text-black"
               style={{ fontFamily: "var(--font-public-sans)" }}
-            />
-            <div className="flex items-center justify-between">
+            >
+              Priority {i + 1}
+            </p>
+            <div className="flex min-h-[112px] flex-col justify-between gap-3 rounded-2xl bg-[#f5f5f5] p-4">
+              <textarea
+                value={idea.text}
+                onChange={(e) => updateIdea(i, { text: e.target.value })}
+                className="w-full flex-1 resize-none bg-transparent text-[15px] leading-[1.5] text-[#1a1a1a] outline-none"
+                style={{ fontFamily: "var(--font-public-sans)" }}
+              />
               <div className="flex items-center gap-2">
                 <span className="text-[13px] text-[#b5b5b5]" aria-hidden>
                   🔒
@@ -288,22 +289,9 @@ export function ReflectionForm({
                   className="text-[12px] text-[#7a7a7a]"
                   style={{ fontFamily: "var(--font-public-sans)" }}
                 >
-                  Private until everyone is in
+                  Stays private: only Jam&apos;s summary is shared with the room.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => updateIdea(i, { refine: !idea.refine })}
-                aria-pressed={idea.refine}
-                className={`rounded-full px-4 py-2 text-[13px] font-medium leading-none transition-colors ${
-                  idea.refine
-                    ? "bg-[#1a1a1a] text-white hover:bg-black"
-                    : "bg-white text-black ring-1 ring-inset ring-black/10 hover:bg-neutral-100"
-                }`}
-                style={{ fontFamily: "var(--font-public-sans)" }}
-              >
-                Refine
-              </button>
             </div>
           </div>
         ))}
@@ -320,15 +308,6 @@ export function ReflectionForm({
       ) : null}
 
       <div className="flex gap-4">
-        <button
-          type="button"
-          onClick={() => submit({ passed: true })}
-          disabled={submitting}
-          className="flex w-[228px] items-center justify-center rounded-2xl bg-white p-4 text-[14px] font-medium leading-none text-black ring-1 ring-inset ring-black/10 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
-          style={{ fontFamily: "var(--font-public-sans)" }}
-        >
-          Pass
-        </button>
         <button
           type="button"
           onClick={() => submit({ passed: false })}

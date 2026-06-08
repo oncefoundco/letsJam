@@ -18,12 +18,11 @@ import {
 import { SynthesizePanel } from "./SynthesizePanel";
 import { DotVotePanel } from "./DotVotePanel";
 import { VotePanel } from "./VotePanel";
+import { PageGuide } from "@/app/_components/PageGuide";
 
 export const metadata = {
   title: "Vote — Jam",
 };
-
-const ACTIVE_STEP = 4;
 
 export default async function VotePage({
   searchParams,
@@ -40,6 +39,7 @@ export default async function VotePage({
       <Body
         sessionId={session.id}
         topic={session.topic}
+        description={session.description}
         files={session.files}
         participants={session.participants}
         options={session.options}
@@ -82,6 +82,7 @@ function Header({ sessionId, hostId }: { sessionId: string; hostId?: string }) {
 function Body({
   sessionId,
   topic,
+  description,
   files,
   participants,
   options,
@@ -92,6 +93,7 @@ function Body({
 }: {
   sessionId: string;
   topic: string;
+  description?: string;
   files: string[];
   participants: Participant[];
   options?: JamOption[];
@@ -108,16 +110,23 @@ function Body({
         perspectives={perspectives}
         round={round}
         hostId={hostId}
+        participants={participants}
       />
       <SessionSidebar
-        activeStep={ACTIVE_STEP}
+        activeStep={round >= 2 ? 6 : 3}
         topic={topic}
+        description={description}
         decisions={decisions}
         files={files}
         sessionId={sessionId}
         participants={participants}
         participantLabel="In the room"
       />
+      <PageGuide>
+        {round >= 2
+          ? "Vote to lock the decision. Back the perspective you'd stand behind, weighed against your priorities. If two or more feel something's missing, the room refines and goes once more."
+          : "Spend your dots on the options you'd back. Pile them on one or spread them out. The option with the most dots becomes the room's direction."}
+      </PageGuide>
     </div>
   );
 }
@@ -128,12 +137,14 @@ function MainCard({
   perspectives,
   round,
   hostId,
+  participants,
 }: {
   sessionId: string;
   options?: JamOption[];
   perspectives?: Perspective[];
   round: number;
   hostId?: string;
+  participants: Participant[];
 }) {
   // Diamond 1 → dot vote on bucketed options; diamond 2 (round >= 2) → A/B vote
   // on the two perspectives.
@@ -144,18 +155,40 @@ function MainCard({
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-6 rounded-3xl bg-white p-6 md:p-8 lg:p-12">
       <div className="flex flex-col gap-4">
-        <p
-          className="text-[14px] font-medium leading-none text-black"
-          style={{ fontFamily: "var(--font-public-sans)" }}
-        >
-          Time to decide
-        </p>
-        <h1
-          className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
-          style={{ fontFamily: "var(--font-queens)" }}
-        >
-          Vote on your direction
-        </h1>
+        {ab ? (
+          <>
+            <h1
+              className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
+              style={{ fontFamily: "var(--font-queens)" }}
+            >
+              Vote to lock our decision
+            </h1>
+            <p
+              className="max-w-[860px] text-[14px] font-medium leading-[1.4] text-black"
+              style={{ fontFamily: "var(--font-public-sans)" }}
+            >
+              Jam pulled everyone&apos;s answers into these. Vote for the one
+              you&apos;d back, weighed against the three priorities you agreed
+              on. If two or more of you feel something&apos;s been missed,
+              we&apos;ll go one more round before it&apos;s locked.
+            </p>
+          </>
+        ) : (
+          <>
+            <p
+              className="text-[14px] font-medium leading-none text-black"
+              style={{ fontFamily: "var(--font-public-sans)" }}
+            >
+              Time to decide
+            </p>
+            <h1
+              className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
+              style={{ fontFamily: "var(--font-queens)" }}
+            >
+              Vote on your direction
+            </h1>
+          </>
+        )}
       </div>
 
       {ready ? (
@@ -172,6 +205,7 @@ function MainCard({
             options={options!}
             round={round}
             hostId={hostId}
+            participants={participants}
           />
         )
       ) : (

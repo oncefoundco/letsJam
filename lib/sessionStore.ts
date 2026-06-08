@@ -30,6 +30,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
     {
       id: string;
       title: string;
+      description: string | null;
       whereby_room_url: string | null;
       whereby_host_room_url: string | null;
       whereby_room_name: string | null;
@@ -37,7 +38,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
       started_at: Date | null;
       current_round: number;
     }[]
-  >`select id, title, whereby_room_url, whereby_host_room_url, whereby_room_name,
+  >`select id, title, description, whereby_room_url, whereby_host_room_url, whereby_room_name,
            created_at, started_at, current_round
       from jams where id = ${id}`;
   if (!jam) return null;
@@ -124,6 +125,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
   return {
     id: jam.id,
     topic: jam.title,
+    description: jam.description ?? undefined,
     files: files.map((f) => f.name as string),
     roomUrl: jam.whereby_room_url ?? "",
     hostRoomUrl: jam.whereby_host_room_url ?? "",
@@ -152,13 +154,14 @@ export async function persistSession(s: StoredSession): Promise<void> {
 
   await sql.begin(async (tx) => {
     await tx`
-      insert into jams (id, title, status, whereby_room_url, whereby_host_room_url,
+      insert into jams (id, title, description, status, whereby_room_url, whereby_host_room_url,
                         whereby_room_name, started_at, current_round, created_at, expires_at)
-      values (${s.id}, ${s.topic}, ${jamStatus(s)}, ${s.roomUrl}, ${s.hostRoomUrl},
+      values (${s.id}, ${s.topic}, ${s.description ?? null}, ${jamStatus(s)}, ${s.roomUrl}, ${s.hostRoomUrl},
               ${s.roomName.replace(/^\/+|\/+$/g, "")}, ${s.startedAt ? new Date(s.startedAt) : null}, ${round},
               ${createdAt}, ${expiresAt})
       on conflict (id) do update set
         title = excluded.title,
+        description = excluded.description,
         status = excluded.status,
         whereby_room_url = excluded.whereby_room_url,
         whereby_host_room_url = excluded.whereby_host_room_url,
@@ -239,9 +242,9 @@ export async function insertNewSession(s: StoredSession): Promise<void> {
   const files = s.files ?? [];
   await sql`
     with j as (
-      insert into jams (id, title, status, whereby_room_url, whereby_host_room_url,
+      insert into jams (id, title, description, status, whereby_room_url, whereby_host_room_url,
                         whereby_room_name, current_round, created_at, expires_at)
-      values (${s.id}, ${s.topic}, ${jamStatus(s)}, ${s.roomUrl}, ${s.hostRoomUrl},
+      values (${s.id}, ${s.topic}, ${s.description ?? null}, ${jamStatus(s)}, ${s.roomUrl}, ${s.hostRoomUrl},
               ${s.roomName.replace(/^\/+|\/+$/g, "")}, ${s.round ?? 1}, ${createdAt}, ${expiresAt})
       returning id
     ),
