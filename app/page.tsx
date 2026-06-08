@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { BrandShapes } from "@/app/_components/BrandShapes";
 import { Logo } from "@/app/_components/Logo";
 import { LogoIntro } from "@/app/_components/LogoIntro";
 import { PhaseWalkthrough } from "@/app/_components/PhaseWalkthrough";
@@ -15,22 +16,10 @@ export default function Home() {
   return (
     <div className="lj-page-load relative overflow-x-clip bg-background">
       <LogoIntro />
-      {/* Brand shapes: a warm spark behind the hero, a cool wash by the phase
-          walkthrough. Big rounded squares rotated off-axis, per the comp.
+      {/* Brand shapes: a warm spark behind the hero, and two blue slabs by the
+          phase walkthrough that rise into view in sequence (left, then right).
           Desktop-only, decorative, never in the content's way. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block"
-      >
-        <div
-          className="absolute rounded-[50px] bg-[var(--color-jam-yellow)]"
-          style={{ top: "-10%", right: "-6%", width: "52%", height: "22%", transform: "rotate(-16deg)" }}
-        />
-        <div
-          className="absolute rounded-[50px] bg-[var(--color-jam-blue)]"
-          style={{ top: "20%", left: "-12%", width: "46%", height: "16%", transform: "rotate(-16deg)" }}
-        />
-      </div>
+      <BrandShapes />
 
       <div className="relative z-10 mx-auto max-w-[1920px]">
         <Header />
@@ -67,7 +56,7 @@ function BeginButton() {
       className="inline-flex items-center justify-center rounded-full bg-black px-6 py-3 text-[18px] font-normal text-white transition duration-200 ease-out will-change-transform hover:scale-[1.03] hover:bg-neutral-800 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3c5bcb]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] motion-reduce:transition-colors motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
       style={{ fontFamily: "var(--font-inter)" }}
     >
-      Begin
+      Host Better Meetings
     </Link>
   );
 }
@@ -91,13 +80,14 @@ function Hero() {
           className="lj-lift heading-display max-w-[871px] text-center text-[32px] leading-[0.8] text-black [text-wrap:balance] sm:text-[52px] md:text-[64px] lg:text-[72px]"
           style={{ ["--lj-delay" as string]: "90ms" }}
         >
-          Jam is not for every meeting. <br /> But definitely for the ones that{" "} <br />
-          <em className="heading-display-italic">matter</em>.
+          The fastest way to get your team{" "}
+          <em className="heading-display-italic">genuinely aligned.</em>
         </h1>
         <p
           className="lj-lift max-w-[601px] text-center text-[15px] leading-[1.3] tracking-[-0.18px] text-[color:var(--color-muted-ink)] sm:text-[18px] sm:leading-[1.25]"
           style={{ ...dmSans, ["--lj-delay" as string]: "180ms" }}
         >
+          Jam is not for every meeting. But definitely for the ones that matter.
           Jam takes your team from &ldquo;what are we actually solving?&rdquo; to
           a decision everyone gets behind, in one focused session.
         </p>
@@ -110,10 +100,10 @@ function Hero() {
 }
 
 const PROMISE = [
-  "We started letsJam with a frustration: strategic decisions inside teams don't actually get made in meetings. They get made in 1:1s after the meeting, in DMs the day after, or, most often, they don't get made at all, and the team relitigates the same question two weeks later in a new meeting room.",
+  "We started Jam with a frustration: strategic decisions inside teams don't actually get made in meetings. They get made in 1:1s after the meeting, in DMs the day after, or most often, they don't get made at all, and the team relitigates the same question two weeks later in a new meeting room.",
   "The cost of this isn't time. It's commitment. Decisions made this way are decisions nobody owns. They unravel the moment someone pushes back in Slack, and the team learns to stop bringing real disagreement to the table.",
   "We don't think the solution is better meetings. We think the solution is a different kind of meeting, one where the structure of the conversation forces the room to do what good facilitators have always done by hand: get private thinking on the table before group thinking distorts it, surface the real disagreement instead of papering over it, and refuse to lock a decision until every dissent has been heard.",
-  "That's what letsJam is. A room where AI runs the methodology, the team does the thinking, and the call you make at the end is one the whole room actually committed to, not the loudest person's preference dressed up as consensus.",
+  "That's what letsJam is. A room where AI runs the methodology, the team does the thinking, and the call you make at the end is one the whole room actually committed to — not the loudest person's preference dressed up as consensus.",
   "Our mission is to make team strategic decisions sharper, faster, and honest. We think most teams have far better strategic instincts than their meetings let them express. letsJam is the room that lets them.",
 ];
 

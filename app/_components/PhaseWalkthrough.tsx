@@ -33,14 +33,8 @@ type Phase = {
 const PHASES: Phase[] = [
   {
     key: "Converse",
-    title: (
-      <>
-        Start by talking
-        <br />
-        it out.
-      </>
-    ),
-    body: "A short, time-boxed discussion to surface what's really going on. While you talk, the decisions you're actually making get pulled into a list, so you leave with calls to make, not a transcript.",
+    title: "Start by getting it all on the table.",
+    body: "Every meeting kicks off with someone's version of the problem, and it's never quite the whole picture. So you just talk it through — keep it short. And while you're talking, Jam's quietly pulling out the decisions you're actually making, so you don't walk away with a page of notes and nothing decided.",
     visual: (
       <Image
         src="/landing/feature-converse.png"
@@ -53,20 +47,20 @@ const PHASES: Phase[] = [
   },
   {
     key: "Diverge",
-    title: "Reflect by yourself on what matters.",
-    body: "Everyone writes their take privately against the same prompt. Nothing is visible until the timer's up, so the room sees what each person actually thinks, not what they say after hearing someone else.",
+    title: "Then reflect on what actually matters.",
+    body: "Here's the bit most meetings skip. Before the room rallies around anything, everyone goes quiet and writes down what they think on their own — so nobody's just nodding along with whoever's loudest. First time round, it's your three priorities for the problem. Later on, it's your one best solution.",
     visual: <ReflectVisual />,
   },
   {
     key: "Collaborate",
-    title: "Align on what matters most.",
-    body: "Once everyone's thinking is on the table, you don't end up with twenty half-formed opinions or one watered-down compromise. You get real options to choose between, each shaped by whose thinking shaped it.",
+    title: "Now shape the options together.",
+    body: "This is the part that makes the rest work. Everyone's priorities go up at once, Jam groups the ones that are really the same thing, and you vote down to the three the solution has to nail. So you've agreed what good actually looks like before anyone's pitched a single idea.",
     visual: <AlignVisual />,
   },
   {
     key: "Decide",
-    title: "Decide on the best way forward.",
-    body: "Vote openly, commit publicly. If two people aren't on board, it goes back for another round. If you're in the minority, you write down why, and that travels with the decision so nobody relitigates it in Slack on Thursday.",
+    title: "And make a call the whole room's behind.",
+    body: "Most decisions are just the loudest person's preference dressed up as agreement — and they fall apart the second someone pushes back later. So here you weigh the solutions against those three things and vote. And if a couple of people still feel something's off, you go again. Nothing's final till everyone's actually been heard.",
     visual: <DecideVisual />,
   },
 ];
