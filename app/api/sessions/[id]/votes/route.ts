@@ -4,6 +4,7 @@ import {
   dotColorsByOption,
   dotVotersDone,
   getSessionFresh,
+  loadVoteStatus,
   recordVote,
   setDotAllocation,
   tallyDots,
@@ -21,7 +22,7 @@ export async function GET(
   // + tally) and allIn. The cache-aside blob can be poisoned stale by a
   // concurrent poll's backfill landing after a writer's invalidation, which
   // wedges the round (dots never appear, allIn never flips). See getSessionFresh.
-  const session = await getSessionFresh(id);
+  const session = await loadVoteStatus(id);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }

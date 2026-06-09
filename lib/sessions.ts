@@ -25,6 +25,7 @@ import {
   setDotAllocations,
   setStartedAt,
 } from "./sessionStore";
+export { loadVoteStatus } from "./sessionStore";
 
 // Sessions live in Upstash Redis (via @vercel/kv).
 // 24h TTL matches the Whereby room's endDate so storage and the call expire together.
