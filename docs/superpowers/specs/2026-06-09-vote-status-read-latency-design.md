@@ -104,6 +104,22 @@ Match `loadSession`'s existing mapping for outcome/decision construction exactly
   (page render, sidebar) backfills the cache on its own misses. Document this in
   the function's comment so the omission reads as intentional.
 
+## Security
+
+Priorities: the change must be secure and must reduce latency. Posture:
+
+- **No new trust surface.** Direct server-authoritative Postgres read; no cache,
+  no trust of any broadcast-payload data (constraint 1). The client still cannot
+  influence the returned tally.
+- **Parameterized SQL only.** `postgres.js` tagged templates bind `${id}` and the
+  `pid` query param as parameters, never string-interpolated — no injection path.
+  The aggregation SQL is static.
+- **Endpoint auth unchanged.** `GET /votes` currently returns status to anyone
+  holding the session id; this change neither weakens nor adds that. Adding real
+  auth/authorization to the endpoint is a separate, larger task (out of scope).
+- **Robustness bonus.** Bypasses the cache-poisoning race `getSessionFresh`
+  exists to dodge, so a stale-cache wedge can no longer affect this read.
+
 ## Out of scope
 
 - Write-path reads (`recordVote`, `resolveVotes`, timer) keep `getSessionFresh`.
