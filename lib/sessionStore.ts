@@ -184,6 +184,11 @@ export async function loadVoteStatus(id: string): Promise<StoredSession | null> 
             'id', p.id, 'name', p.name, 'bg', p.color,
             'joinedAt', (extract(epoch from p.joined_at) * 1000)::float8) order by p.joined_at)
           from jam_participants p where p.jam_id = ${id}), '[]') as participants,
+        -- votes is pre-scoped to the current round here (loadSession returns all
+        -- rounds); the GET /votes consumers (votesThisRound/tally/voterIds) only read
+        -- participantId/choice/round, so name/votedAt are unused placeholders. Do NOT
+        -- feed a loadVoteStatus result to resolveVotes/tallyVotes — they read name and
+        -- assume all-rounds votes.
         coalesce((select json_agg(json_build_object(
             'participantId', v.participant_id, 'name', '', 'choice', v.choice,
             'reason', v.reason, 'round', v.round, 'votedAt', 0) order by v.voted_at)
@@ -193,6 +198,7 @@ export async function loadVoteStatus(id: string): Promise<StoredSession | null> 
           from perspectives pe where pe.jam_id = ${id} and pe.round = ${round}), '[]') as perspectives,
         (select json_build_object('round', o.round, 'choice', o.choice)
           from outcomes o where o.jam_id = ${id} and o.round = ${round} limit 1) as outcome`;
+    if (!row) return base;
     base.participants = row.participants;
     base.votes = row.votes;
     base.perspectives = row.perspectives.length ? row.perspectives : undefined;
@@ -219,6 +225,7 @@ export async function loadVoteStatus(id: string): Promise<StoredSession | null> 
           order by op.position)
         from jam_options op where op.jam_id = ${id} and op.round = ${round}), '[]') as options,
       (select dec.option_id from jam_decisions dec where dec.jam_id = ${id} and dec.round = ${round} limit 1) as decided_option_id`;
+  if (!row) return base;
   base.participants = row.participants;
   base.dotVotes = row.dot_votes;
   base.options = row.options.length ? row.options : undefined;
