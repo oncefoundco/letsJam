@@ -228,9 +228,12 @@ export async function loadVoteStatus(id: string): Promise<StoredSession | null> 
   if (!row) return base;
   base.participants = row.participants;
   base.dotVotes = row.dot_votes;
-  base.options = row.options.length ? row.options : undefined;
+  // json_build_object emits authorId: null for authorless options; loadSession
+  // maps that to undefined (key omitted). Match it so the response is identical.
+  const options = row.options.map((o: JamOption) => ({ ...o, authorId: o.authorId ?? undefined }));
+  base.options = options.length ? options : undefined;
   if (row.decided_option_id) {
-    const opt = row.options.find((o) => o.id === row.decided_option_id);
+    const opt = options.find((o) => o.id === row.decided_option_id);
     if (opt) base.decision = { round, option: opt };
   }
   return base;
