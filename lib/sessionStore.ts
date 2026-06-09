@@ -145,6 +145,90 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
   };
 }
 
+// Lightweight, vote-only source-of-truth read for the GET /votes hot path
+// (fires on every Realtime broadcast + the fallback poll). loadSession issues
+// 1+10 queries; through the non-pipelining Sydney pooler that's ~10 serialized
+// round-trips (~2s). The vote-status response only needs the current round's
+// slice, so this does a cheap current_round probe + ONE aggregated statement for
+// the relevant phase (~2 round-trips). Returns a PARTIAL StoredSession: only the
+// fields the GET /votes response helpers read are populated; the rest are safe
+// empties. Reads Postgres directly (no Redis), so it keeps the strict
+// server-authoritative model and sidesteps the cache-poisoning race
+// getSessionFresh exists to dodge. It deliberately does NOT re-warm the Redis
+// blob (it has no full session to write) — getSession backfills on its own miss.
+export async function loadVoteStatus(id: string): Promise<StoredSession | null> {
+  const [probe] = await sql<{ current_round: number }[]>`
+    select current_round from jams where id = ${id}`;
+  if (!probe) return null;
+  const round = probe.current_round;
+
+  const base: StoredSession = {
+    id,
+    topic: "",
+    files: [],
+    roomUrl: "",
+    hostRoomUrl: "",
+    roomName: "",
+    createdAt: 0,
+    participants: [],
+    reflections: [],
+    round,
+  };
+
+  if (round >= 2) {
+    const [row] = await sql<
+      { participants: Participant[]; votes: Vote[]; perspectives: Perspective[]; outcome: { round: number; choice: "A" | "B" } | null }[]
+    >`
+      select
+        coalesce((select json_agg(json_build_object(
+            'id', p.id, 'name', p.name, 'bg', p.color,
+            'joinedAt', (extract(epoch from p.joined_at) * 1000)::float8) order by p.joined_at)
+          from jam_participants p where p.jam_id = ${id}), '[]') as participants,
+        coalesce((select json_agg(json_build_object(
+            'participantId', v.participant_id, 'name', '', 'choice', v.choice,
+            'reason', v.reason, 'round', v.round, 'votedAt', 0) order by v.voted_at)
+          from votes v where v.jam_id = ${id} and v.round = ${round}), '[]') as votes,
+        coalesce((select json_agg(json_build_object(
+            'label', pe.label, 'title', pe.title, 'body', pe.body, 'attribution', pe.attribution) order by pe.slot)
+          from perspectives pe where pe.jam_id = ${id} and pe.round = ${round}), '[]') as perspectives,
+        (select json_build_object('round', o.round, 'choice', o.choice)
+          from outcomes o where o.jam_id = ${id} and o.round = ${round} limit 1) as outcome`;
+    base.participants = row.participants;
+    base.votes = row.votes;
+    base.perspectives = row.perspectives.length ? row.perspectives : undefined;
+    if (row.outcome) {
+      const slot = row.outcome.choice === "A" ? 0 : 1;
+      base.outcome = { round: row.outcome.round, choice: row.outcome.choice, perspective: row.perspectives[slot] };
+    }
+    return base;
+  }
+
+  const [row] = await sql<
+    { participants: Participant[]; dot_votes: DotAllocation[]; options: JamOption[]; decided_option_id: string | null }[]
+  >`
+    select
+      coalesce((select json_agg(json_build_object(
+          'id', p.id, 'name', p.name, 'bg', p.color,
+          'joinedAt', (extract(epoch from p.joined_at) * 1000)::float8) order by p.joined_at)
+        from jam_participants p where p.jam_id = ${id}), '[]') as participants,
+      coalesce((select json_agg(json_build_object(
+          'participantId', d.participant_id, 'optionId', d.option_id, 'dots', d.dots, 'round', d.round))
+        from dot_allocations d where d.jam_id = ${id} and d.round = ${round}), '[]') as dot_votes,
+      coalesce((select json_agg(json_build_object(
+          'id', op.id, 'title', op.title, 'body', op.body, 'attribution', op.attribution, 'authorId', op.author_id)
+          order by op.position)
+        from jam_options op where op.jam_id = ${id} and op.round = ${round}), '[]') as options,
+      (select dec.option_id from jam_decisions dec where dec.jam_id = ${id} and dec.round = ${round} limit 1) as decided_option_id`;
+  base.participants = row.participants;
+  base.dotVotes = row.dot_votes;
+  base.options = row.options.length ? row.options : undefined;
+  if (row.decided_option_id) {
+    const opt = row.options.find((o) => o.id === row.decided_option_id);
+    if (opt) base.decision = { round, option: opt };
+  }
+  return base;
+}
+
 const SESSION_TTL_SECONDS = 60 * 60 * 24;
 
 export async function persistSession(s: StoredSession): Promise<void> {
