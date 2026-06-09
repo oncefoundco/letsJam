@@ -194,7 +194,10 @@ export async function loadVoteStatus(id: string): Promise<StoredSession | null> 
             'reason', v.reason, 'round', v.round, 'votedAt', 0) order by v.voted_at)
           from votes v where v.jam_id = ${id} and v.round = ${round}), '[]') as votes,
         coalesce((select json_agg(json_build_object(
-            'label', pe.label, 'title', pe.title, 'body', pe.body, 'attribution', pe.attribution) order by pe.slot)
+            'label', coalesce(pe.label, ''), -- coalesce to '' to match loadSession (these columns are nullable)
+            'title', coalesce(pe.title, ''), -- coalesce to '' to match loadSession (these columns are nullable)
+            'body', coalesce(pe.body, ''), -- coalesce to '' to match loadSession (these columns are nullable)
+            'attribution', coalesce(pe.attribution, '')) order by pe.slot) -- coalesce to '' to match loadSession (these columns are nullable)
           from perspectives pe where pe.jam_id = ${id} and pe.round = ${round}), '[]') as perspectives,
         (select json_build_object('round', o.round, 'choice', o.choice)
           from outcomes o where o.jam_id = ${id} and o.round = ${round} limit 1) as outcome`;
@@ -221,7 +224,11 @@ export async function loadVoteStatus(id: string): Promise<StoredSession | null> 
           'participantId', d.participant_id, 'optionId', d.option_id, 'dots', d.dots, 'round', d.round))
         from dot_allocations d where d.jam_id = ${id} and d.round = ${round}), '[]') as dot_votes,
       coalesce((select json_agg(json_build_object(
-          'id', op.id, 'title', op.title, 'body', op.body, 'attribution', op.attribution, 'authorId', op.author_id)
+          'id', op.id,
+          'title', coalesce(op.title, ''), -- coalesce to '' to match loadSession (these columns are nullable)
+          'body', coalesce(op.body, ''), -- coalesce to '' to match loadSession (these columns are nullable)
+          'attribution', coalesce(op.attribution, ''), -- coalesce to '' to match loadSession (these columns are nullable)
+          'authorId', op.author_id)
           order by op.position)
         from jam_options op where op.jam_id = ${id} and op.round = ${round}), '[]') as options,
       (select dec.option_id from jam_decisions dec where dec.jam_id = ${id} and dec.round = ${round} limit 1) as decided_option_id`;
