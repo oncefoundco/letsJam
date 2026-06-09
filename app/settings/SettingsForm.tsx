@@ -13,27 +13,66 @@ const TIME_OPTIONS = [
   "30 minutes",
 ];
 
-type Member = { name: string; email: string };
+type Member = { id: string; name: string; email: string };
 
 export function SettingsForm({
+  userId,
   name: initialName,
   email,
   provider,
   defaultTime: initialDefaultTime,
+  initialTeam,
 }: {
+  userId: string;
   name: string;
   email: string;
   provider: string;
   defaultTime: string;
+  initialTeam: Member[];
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [defaultTime, setDefaultTime] = useState(initialDefaultTime);
-  // No team backend yet — kept as a local list so the section is usable, but it
-  // does not persist. Wire to a real teams store when one exists.
-  const [team, setTeam] = useState<Member[]>([]);
+  // Team roster persists to public.team_members (RLS-scoped to this user via
+  // owner_id = auth.uid()). We write on add/remove so it survives reload,
+  // independently of the Save button (which only stores profile fields).
+  const [team, setTeam] = useState<Member[]>(initialTeam);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Returns an error message on failure, or null on success.
+  async function addMember(rawEmail: string): Promise<string | null> {
+    const memberEmail = rawEmail.trim();
+    if (!memberEmail) return null;
+    if (team.some((m) => m.email === memberEmail)) {
+      return "That email is already on your team.";
+    }
+    const local = memberEmail.split("@")[0] ?? memberEmail;
+    const memberName = local.charAt(0).toUpperCase() + local.slice(1);
+    const { data, error: insertError } = await createClient()
+      .from("team_members")
+      .insert({ owner_id: userId, name: memberName, email: memberEmail })
+      .select("id, name, email")
+      .single();
+    if (insertError || !data) {
+      return insertError?.message ?? "Could not add that member.";
+    }
+    setTeam((current) => [...current, data as Member]);
+    return null;
+  }
+
+  async function removeMember(id: string) {
+    const previous = team;
+    setTeam((current) => current.filter((m) => m.id !== id)); // optimistic
+    const { error: deleteError } = await createClient()
+      .from("team_members")
+      .delete()
+      .eq("id", id);
+    if (deleteError) {
+      setTeam(previous); // rollback
+      setError("Could not remove that member.");
+    }
+  }
 
   async function save() {
     if (saving) return;
@@ -71,7 +110,7 @@ export function SettingsForm({
               email={email}
               provider={provider}
             />
-            <Team team={team} onChange={setTeam} />
+            <Team team={team} onAdd={addMember} onRemove={removeMember} />
             <DefaultTime selected={defaultTime} onSelect={setDefaultTime} />
             <Billing />
           </div>
@@ -99,6 +138,14 @@ export function SettingsForm({
 
 const FONT = { fontFamily: "var(--font-public-sans)" } as const;
 
+// Inputs that shrink-to-fit their content (field-sizing) with a `size` fallback
+// for browsers without it — so the pill hugs the text instead of leaving a wide
+// trailing gap. Used for the name + new-member inputs.
+const AUTO_INPUT = {
+  fontFamily: "var(--font-public-sans)",
+  fieldSizing: "content",
+} as React.CSSProperties;
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[14px] font-bold leading-none text-black" style={FONT}>
@@ -124,7 +171,7 @@ function Pill({
 }) {
   return (
     <span
-      className={`inline-flex items-center justify-center gap-3 rounded-full bg-[#f5f5f5] p-3 text-[14px] leading-none text-black ${
+      className={`inline-flex items-center justify-center gap-3 rounded-full bg-[#f5f5f5] px-5 py-3 text-[14px] leading-none text-black ${
         className ?? ""
       }`}
       style={FONT}
@@ -155,9 +202,10 @@ function Profile({
             value={name}
             onChange={(e) => onName(e.target.value)}
             maxLength={60}
+            size={Math.max(name.length, "Your name".length)}
             placeholder="Your name"
-            className="rounded-full bg-[#f5f5f5] p-3 text-[14px] leading-none text-black outline-none placeholder:text-black/40 focus:ring-2 focus:ring-[#3c5bcb]/40"
-            style={FONT}
+            className="min-w-0 rounded-full bg-[#f5f5f5] px-5 py-3 text-[14px] leading-none text-black outline-none placeholder:text-black/40 focus:ring-2 focus:ring-[#3c5bcb]/40"
+            style={AUTO_INPUT}
           />
         </div>
         <div className="flex items-center gap-3">
@@ -181,27 +229,42 @@ function Profile({
 
 function Team({
   team,
-  onChange,
+  onAdd,
+  onRemove,
 }: {
   team: Member[];
-  onChange: (team: Member[]) => void;
+  onAdd: (email: string) => Promise<string | null>;
+  onRemove: (id: string) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function commit() {
+  async function commit() {
+    if (busy) return;
     const email = draft.trim();
-    if (email && !team.some((m) => m.email === email)) {
-      const local = email.split("@")[0] ?? email;
-      const name = local.charAt(0).toUpperCase() + local.slice(1);
-      onChange([...team, { name, email }]);
+    if (!email) {
+      setDraft("");
+      setAdding(false);
+      return;
     }
+    setBusy(true);
+    const err = await onAdd(email);
+    setBusy(false);
+    if (err) {
+      setError(err);
+      requestAnimationFrame(() => inputRef.current?.focus());
+      return; // keep the input open so they can correct it
+    }
+    setError(null);
     setDraft("");
     setAdding(false);
   }
 
   function startAdding() {
+    setError(null);
     setAdding(true);
     requestAnimationFrame(() => inputRef.current?.focus());
   }
@@ -213,7 +276,8 @@ function Team({
         <button
           type="button"
           onClick={startAdding}
-          className="rounded-full bg-[#f4f4f4] p-3 text-[14px] leading-none text-black transition-colors hover:bg-neutral-200"
+          disabled={busy}
+          className="rounded-full bg-[#f4f4f4] px-5 py-3 text-[14px] leading-none text-black transition-colors hover:bg-neutral-200 disabled:opacity-60"
           style={FONT}
         >
           Add Member
@@ -226,15 +290,13 @@ function Team({
           </p>
         ) : null}
         {team.map((member) => (
-          <div key={member.email} className="flex items-center gap-3">
+          <div key={member.id} className="flex items-center gap-3">
             <RowLabel>{member.name}</RowLabel>
             <Pill>
               {member.email}
               <button
                 type="button"
-                onClick={() =>
-                  onChange(team.filter((m) => m.email !== member.email))
-                }
+                onClick={() => onRemove(member.id)}
                 aria-label={`Remove ${member.email}`}
                 className="grid h-[18px] w-[18px] place-items-center rounded-full text-black/60 transition-colors hover:bg-black/10 hover:text-black"
               >
@@ -252,20 +314,28 @@ function Team({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commit}
+              disabled={busy}
+              size={Math.max(draft.length, "name@organization.com".length)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  commit();
+                  void commit();
                 } else if (e.key === "Escape") {
                   setDraft("");
+                  setError(null);
                   setAdding(false);
                 }
               }}
               placeholder="name@organization.com"
-              className="rounded-full bg-[#f5f5f5] p-3 text-[14px] leading-none text-black outline-none placeholder:text-black/40 focus:ring-2 focus:ring-[#3c5bcb]/40"
-              style={FONT}
+              className="min-w-0 rounded-full bg-[#f5f5f5] px-5 py-3 text-[14px] leading-none text-black outline-none placeholder:text-black/40 focus:ring-2 focus:ring-[#3c5bcb]/40 disabled:opacity-60"
+              style={AUTO_INPUT}
             />
           </div>
+        ) : null}
+        {error ? (
+          <p className="text-[13px] leading-none text-red-600" style={FONT}>
+            {error}
+          </p>
         ) : null}
       </div>
     </div>
@@ -312,24 +382,9 @@ function Billing() {
     <div className="flex flex-col gap-3">
       <SectionLabel>Billing</SectionLabel>
       <p className="text-[14px] leading-none text-black" style={FONT}>
-        Subscription Status: Pro ($100/month)
+        Subscription Status: Friend of oncefound
       </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className="rounded-full bg-[#f5f5f5] p-3 text-[14px] leading-none text-black transition-colors hover:bg-neutral-200"
-          style={FONT}
-        >
-          Past Invoices
-        </button>
-        <button
-          type="button"
-          className="rounded-full bg-[#f5f5f5] p-3 text-[14px] leading-none text-black transition-colors hover:bg-neutral-200"
-          style={FONT}
-        >
-          Cancel Account
-        </button>
-      </div>
+      {/* Past Invoices + Cancel Account buttons are hidden for now. */}
     </div>
   );
 }

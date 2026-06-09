@@ -30,6 +30,16 @@ export default async function SettingsPage() {
     "email";
   const defaultTime = (meta.default_video_time as string) || "10 minutes";
 
+  // The user's saved team roster. RLS (team_members_all_owner) scopes this to
+  // their own rows. Loaded server-side so the section renders populated with no
+  // client-side flash.
+  const { data: teamRows } = await supabase
+    .from("team_members")
+    .select("id, name, email")
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: true });
+  const initialTeam = (teamRows ?? []) as { id: string; name: string; email: string }[];
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="flex items-center justify-between px-6 py-6 md:px-12 lg:px-16">
@@ -45,10 +55,12 @@ export default async function SettingsPage() {
         </Link>
       </header>
       <SettingsForm
+        userId={user.id}
         name={name}
         email={email}
         provider={provider}
         defaultTime={defaultTime}
+        initialTeam={initialTeam}
       />
     </div>
   );
