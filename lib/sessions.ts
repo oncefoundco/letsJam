@@ -84,6 +84,11 @@ export type Outcome = {
 export type StoredSession = {
   id: string;
   topic: string;
+  // Supabase user id of the signed-in host who created the jam. Written once at
+  // create (insertNewSession); never updated by persistSession. Drives the
+  // host's "Previous Jams" history and the recap page's owner gate. Optional;
+  // jams created before this field (or by unauthenticated hosts) lack it.
+  createdBy?: string;
   // The host's longer "Describe your Jam" text, shown under the challenge in
   // the session sidebar. Optional; older jams predate it.
   description?: string;

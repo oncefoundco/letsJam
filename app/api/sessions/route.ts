@@ -56,8 +56,11 @@ export async function POST(req: Request) {
 
     const id = crypto.randomUUID();
     // Persist the room with the host already in it (single-statement insert).
+    // created_by ties the jam to the signed-in host for their Previous Jams
+    // history; guests (no auth) simply leave it null.
     await createSession({
       id,
+      createdBy: user?.id,
       topic,
       description,
       files,

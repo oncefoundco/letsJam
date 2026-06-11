@@ -20,7 +20,9 @@ const ms = (d: Date | string | null | undefined): number | undefined =>
   d == null ? undefined : new Date(d).getTime();
 
 function jamStatus(s: StoredSession): string {
-  if (s.outcome) return "completed";
+  // Either voting model ends the jam: outcome is the A/B winner, decision is
+  // the dot-vote winner.
+  if (s.outcome || s.decision) return "completed";
   if (s.startedAt) return "active";
   return "waiting";
 }
@@ -29,6 +31,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
   const [jam] = await sql<
     {
       id: string;
+      created_by: string | null;
       title: string;
       description: string | null;
       whereby_room_url: string | null;
@@ -38,7 +41,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
       started_at: Date | null;
       current_round: number;
     }[]
-  >`select id, title, description, whereby_room_url, whereby_host_room_url, whereby_room_name,
+  >`select id, created_by, title, description, whereby_room_url, whereby_host_room_url, whereby_room_name,
            created_at, started_at, current_round
       from jams where id = ${id}`;
   if (!jam) return null;
@@ -124,6 +127,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
 
   return {
     id: jam.id,
+    createdBy: jam.created_by ?? undefined,
     topic: jam.title,
     description: jam.description ?? undefined,
     files: files.map((f) => f.name as string),
@@ -343,9 +347,9 @@ export async function insertNewSession(s: StoredSession): Promise<void> {
   const files = s.files ?? [];
   await sql`
     with j as (
-      insert into jams (id, title, description, status, whereby_room_url, whereby_host_room_url,
+      insert into jams (id, created_by, title, description, status, whereby_room_url, whereby_host_room_url,
                         whereby_room_name, current_round, created_at, expires_at)
-      values (${s.id}, ${s.topic}, ${s.description ?? null}, ${jamStatus(s)}, ${s.roomUrl}, ${s.hostRoomUrl},
+      values (${s.id}, ${s.createdBy ?? null}, ${s.topic}, ${s.description ?? null}, ${jamStatus(s)}, ${s.roomUrl}, ${s.hostRoomUrl},
               ${s.roomName.replace(/^\/+|\/+$/g, "")}, ${s.round ?? 1}, ${createdAt}, ${expiresAt})
       returning id
     ),
@@ -614,4 +618,66 @@ export async function tryRefineRound(
     await tx`delete from reflection_ideas where jam_id = ${jamId}`;
   });
   return bumped;
+}
+
+// ── Previous Jams (host history) ─────────────────────────────────────────────
+
+// One card in the host's "Previous Jams" list on /start.
+export type HostJamSummary = {
+  id: string;
+  title: string;
+  status: string;
+  createdAt: number;
+  startedAt?: number;
+  rounds: number;
+  participants: number;
+  // Title of what the room landed on — the winning option (dot vote) or the
+  // winning perspective (A/B vote). Absent until the jam resolves.
+  result?: string;
+};
+
+// The signed-in host's jam history, newest first. One aggregated statement
+// (the transaction-mode pooler can't pipeline — see loadVoteStatus) that
+// resolves the winner's title from either voting model: jam_decisions →
+// jam_options for dot votes, outcomes → perspectives for A/B votes.
+export async function loadHostJams(userId: string): Promise<HostJamSummary[]> {
+  const rows = await sql<
+    {
+      id: string;
+      title: string;
+      status: string;
+      created_at: Date;
+      started_at: Date | null;
+      current_round: number;
+      participants: number;
+      result: string | null;
+    }[]
+  >`
+    select j.id, j.title, j.status::text as status, j.created_at, j.started_at, j.current_round,
+      (select count(*)::int from jam_participants p where p.jam_id = j.id) as participants,
+      coalesce(
+        (select o.title from jam_decisions d
+           join jam_options o on o.jam_id = d.jam_id and o.id = d.option_id
+          where d.jam_id = j.id
+          order by d.round desc limit 1),
+        (select pe.title from outcomes oc
+           join perspectives pe
+             on pe.jam_id = oc.jam_id and pe.round = oc.round and pe.slot = oc.choice
+          where oc.jam_id = j.id
+          order by oc.round desc limit 1)
+      ) as result
+    from jams j
+    where j.created_by = ${userId}
+    order by j.created_at desc
+    limit 50`;
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    createdAt: ms(r.created_at)!,
+    startedAt: ms(r.started_at) ?? undefined,
+    rounds: r.current_round,
+    participants: r.participants,
+    result: r.result ?? undefined,
+  }));
 }

@@ -6,6 +6,7 @@ import { AuthGate } from "./AuthGate";
 import { SignupTease } from "./SignupTease";
 import { createClient } from "@/lib/supabase/server";
 import { PageGuide } from "@/app/_components/PageGuide";
+import { loadHostJams, type HostJamSummary } from "@/lib/sessionStore";
 
 export const metadata = {
   title: "Start a New Jam — Jam",
@@ -27,12 +28,16 @@ export default async function StartSessionPage() {
     (meta.name as string) ||
     "";
 
+  // The host's jam history for the Previous Jams rail. Best-effort: a DB
+  // hiccup here shouldn't take down the create form.
+  const jams = user ? await loadHostJams(user.id).catch(() => []) : [];
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       {/* Before sign-in, show a populated tease of the real screen behind the
           auth modal. Once signed in, render the live, interactive form. */}
-      {authed ? <Body /> : <SignupTease />}
+      {authed ? <Body jams={jams} /> : <SignupTease />}
       {authed ? (
         <PageGuide>
           Set up your Jam: name the challenge, describe it, add who&apos;s
@@ -68,11 +73,11 @@ function Header() {
   );
 }
 
-function Body() {
+function Body({ jams }: { jams: HostJamSummary[] }) {
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-11 lg:px-16 lg:pb-16 lg:pt-8">
       <MainCard />
-      <PreviousJams />
+      <PreviousJams jams={jams} />
     </div>
   );
 }
@@ -85,9 +90,27 @@ function MainCard() {
   );
 }
 
-function PreviousJams() {
+// Labels for the jam_status enum. "Decided" leads with the outcome — the #1
+// thing a host scans this list for.
+const STATUS_LABELS: Record<string, string> = {
+  completed: "Decided",
+  active: "In progress",
+  waiting: "Waiting",
+  scheduled: "Scheduled",
+  draft: "Draft",
+  archived: "Archived",
+};
+
+function jamDate(ts: number): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(ts));
+}
+
+function PreviousJams({ jams }: { jams: HostJamSummary[] }) {
   return (
-    <aside className="flex w-full flex-col items-center gap-6 lg:w-auto lg:flex-1 lg:self-stretch">
+    <aside className="flex w-full flex-col gap-6 lg:w-auto lg:flex-1 lg:self-stretch">
       <div className="flex w-full items-start justify-between gap-4">
         <h2
           className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
@@ -103,13 +126,65 @@ function PreviousJams() {
           Filter by date
         </button>
       </div>
-      <p
-        className="mt-4 text-[18px] italic leading-[1.5] text-[#1a1a1a]"
-        style={{ fontFamily: "var(--font-public-sans)" }}
-      >
-        No jams yet. The ones you run will show up here.
-      </p>
+      {jams.length === 0 ? (
+        <p
+          className="mt-4 text-[18px] italic leading-[1.5] text-[#1a1a1a]"
+          style={{ fontFamily: "var(--font-public-sans)" }}
+        >
+          No jams yet. The ones you run will show up here.
+        </p>
+      ) : (
+        <ul className="flex w-full flex-col gap-4">
+          {jams.map((jam) => (
+            <li key={jam.id}>
+              <JamCard jam={jam} />
+            </li>
+          ))}
+        </ul>
+      )}
     </aside>
+  );
+}
+
+function JamCard({ jam }: { jam: HostJamSummary }) {
+  const decided = jam.status === "completed";
+  const neverStarted = !jam.startedAt && !decided;
+  return (
+    <Link
+      href={`/jam/${jam.id}`}
+      className="flex flex-col gap-3 rounded-3xl bg-white p-6 transition-colors hover:bg-neutral-50"
+      style={{ fontFamily: "var(--font-public-sans)" }}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <span
+          className={`rounded-full px-3 py-1.5 text-[12px] font-semibold leading-none ${
+            decided ? "bg-jam-yellow text-[#1a1a1a]" : "bg-[#f5f5f5] text-[#1a1a1a]/70"
+          }`}
+        >
+          {STATUS_LABELS[jam.status] ?? jam.status}
+        </span>
+        <span className="text-[13px] leading-none text-[#1a1a1a]/50">
+          {jamDate(jam.createdAt)}
+        </span>
+      </div>
+      <p className="text-[18px] font-medium leading-[1.35] text-[#1a1a1a]">
+        {jam.title}
+      </p>
+      {jam.result ? (
+        <p className="text-[15px] italic leading-[1.5] text-muted-ink">
+          → {jam.result}
+        </p>
+      ) : neverStarted ? (
+        <p className="text-[15px] italic leading-[1.5] text-[#1a1a1a]/40">
+          Never started
+        </p>
+      ) : null}
+      <p className="text-[13px] leading-none text-[#1a1a1a]/50">
+        {jam.participants} {jam.participants === 1 ? "person" : "people"}
+        {" · "}
+        {jam.rounds} {jam.rounds === 1 ? "round" : "rounds"}
+      </p>
+    </Link>
   );
 }
 
