@@ -15,23 +15,18 @@ export type JamInvite = {
   joinUrl: string;
 };
 
-// The wordmark is recreated in HTML/CSS (the "lets" blue pill + "jam" text)
-// rather than an <img>. Images make every client fetch + show a loading
-// placeholder (and break entirely if the asset isn't deployed); CSS renders
-// instantly with no network round-trip. The pill's rotation degrades to a flat
-// pill in clients that strip CSS transforms (Outlook) — still on-brand.
-// The real Product Sans wordmark (public/email/logo.png), served from the same
-// origin that serves the email's join link — so on any deployment (preview or
-// prod) the asset is co-located and never 404s or points cross-environment.
-function renderLogo(logoUrl: string): string {
-  return `<img src="${logoUrl}" width="120" height="41" alt="letsJam" style="display:block;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;width:120px;height:41px;" />`;
-}
+// The real Product Sans wordmark (public/email/logo.png), always served from
+// the canonical prod domain — never the sending deployment's origin. Emails
+// outlive deployments: a logo URL pointing at a preview deployment (or
+// localhost, in dev sends) breaks forever in the recipient's inbox once that
+// deployment is gone. vercel.json serves /email/* with a long-lived immutable
+// Cache-Control so Gmail's image proxy caches it and the logo renders
+// instantly; if the artwork ever changes, ship it under a NEW filename
+// (logo-v2.png) — the old URL stays cached for up to a year.
+const LOGO_URL = "https://letsjam.so/email/logo.png";
 
-// Derive the deployment origin from the join URL (which is always
-// `${origin}/waiting-room?...`). Falls back to the prod domain.
-function originOf(url: string): string {
-  const match = /^(https?:\/\/[^/]+)/.exec(url);
-  return match ? match[1] : "https://letsjam.so";
+function renderLogo(): string {
+  return `<img src="${LOGO_URL}" width="120" height="41" alt="letsJam" style="display:block;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;width:120px;height:41px;" />`;
 }
 
 // Queens Compressed is the site's display face; Georgia is its committed
@@ -56,7 +51,6 @@ export function renderInviteEmail({ hostName, topic, joinUrl }: JamInvite): stri
   // table-based layout for Outlook, no JS.
   const safeTopic = escapeHtml(topic);
   const safeHost = escapeHtml(hostName);
-  const logoUrl = `${originOf(joinUrl)}/email/logo.png`;
 
   return `<!doctype html>
 <html lang="en">
@@ -76,7 +70,7 @@ export function renderInviteEmail({ hostName, topic, joinUrl }: JamInvite): stri
             <!-- Logo -->
             <tr>
               <td style="padding:44px 44px 0 44px;">
-                ${renderLogo(logoUrl)}
+                ${renderLogo()}
               </td>
             </tr>
             <!-- Headline (display serif) with one jam-yellow spark -->
