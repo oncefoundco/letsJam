@@ -237,11 +237,20 @@ export function PhaseCarousel() {
                     className="flex h-full flex-col items-start text-left outline-none transition-opacity duration-300 focus-visible:opacity-100"
                     style={{ opacity: isActive ? 1 : 0.5 }}
                   >
-                    <span
-                      className="text-[18px] font-medium leading-none text-white"
-                      style={dmSans}
-                    >
-                      {p.key}
+                    {/* Mark appears next to the name on the active tab; its
+                        slot is always reserved so the name never shifts. */}
+                    <span className="flex items-center gap-2.5">
+                      <PhaseIcon
+                        shape={p.icon}
+                        className="h-4 w-4 flex-none text-white transition-opacity duration-300"
+                        style={{ opacity: isActive ? 1 : 0 }}
+                      />
+                      <span
+                        className="text-[18px] font-medium leading-none text-white"
+                        style={dmSans}
+                      >
+                        {p.key}
+                      </span>
                     </span>
                     <span
                       className="mt-3 text-[13px] leading-[1.4] text-white/75"
@@ -249,18 +258,8 @@ export function PhaseCarousel() {
                     >
                       {p.lead}
                     </span>
-                    {/* Bottom-pinned: mark (revealed on active) + progress bar. */}
+                    {/* Progress bar, pinned to the bottom (unchanged). */}
                     <span className="mt-auto w-full pt-5">
-                      <span className="mb-3 block h-5">
-                        <PhaseIcon
-                          shape={p.icon}
-                          className="h-5 w-5 text-white transition-all duration-300"
-                          style={{
-                            opacity: isActive ? 1 : 0,
-                            transform: isActive ? "scale(1)" : "scale(0.6)",
-                          }}
-                        />
-                      </span>
                       <ProgressBar
                         active={isActive}
                         reduced={reduced}
@@ -286,14 +285,14 @@ export function PhaseCarousel() {
                       pointerEvents: i === active ? "auto" : "none",
                     }}
                   >
-                    <PhaseIcon
-                      shape={p.icon}
-                      className="mb-3 h-5 w-5 text-white"
-                    />
                     <p
-                      className="text-[18px] font-medium leading-none text-white"
+                      className="flex items-center gap-2.5 text-[18px] font-medium leading-none text-white"
                       style={dmSans}
                     >
+                      <PhaseIcon
+                        shape={p.icon}
+                        className="h-4 w-4 flex-none text-white"
+                      />
                       {p.key}
                     </p>
                     <p
