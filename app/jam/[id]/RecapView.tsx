@@ -198,8 +198,10 @@ export function RecapView({ data }: { data: RecapData }) {
                 {data.perspectives.map((p) => (
                   <div
                     key={p.slot}
-                    className={`flex flex-col gap-2 rounded-2xl bg-[#f5f5f5] p-[18px] text-[#1a1a1a] ${
-                      p.winner ? "border-2 border-[#1a1a1a]" : ""
+                    className={`flex flex-col gap-2 rounded-2xl p-[18px] text-[#1a1a1a] ${
+                      p.winner
+                        ? "border-2 border-[#1a1a1a] bg-jam-yellow"
+                        : "bg-[#f5f5f5]"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -208,7 +210,7 @@ export function RecapView({ data }: { data: RecapData }) {
                       </p>
                       {p.winner ? (
                         <span
-                          className="shrink-0 rounded-full bg-jam-yellow px-3 py-1.5 text-[11px] font-semibold leading-none text-[#1a1a1a]"
+                          className="shrink-0 rounded-full bg-[#1a1a1a] px-3 py-1.5 text-[11px] font-semibold leading-none text-jam-yellow"
                           style={PS}
                         >
                           Winner
