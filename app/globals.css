@@ -288,3 +288,14 @@ body {
     animation: none;
   }
 }
+
+/* PhaseCarousel: the active tab's underline fills left-to-right over the slide
+   duration, mirroring the auto-advance. Restarted per slide via a React key. */
+@keyframes lj-phase-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}

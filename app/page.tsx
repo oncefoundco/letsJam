@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BrandShapes } from "@/app/_components/BrandShapes";
 import { Logo } from "@/app/_components/Logo";
 import { LogoIntro } from "@/app/_components/LogoIntro";
-import { PhaseWalkthrough } from "@/app/_components/PhaseWalkthrough";
+import { PhaseCarousel } from "@/app/_components/PhaseCarousel";
 import { Reveal } from "@/app/_components/Reveal";
 
 const dmSans = { fontFamily: "var(--font-dm-sans)" } as const;
@@ -24,7 +24,7 @@ export default function Home() {
       <div className="relative z-10 mx-auto max-w-[1920px]">
         <Header />
         <Hero />
-        <PhaseWalkthrough />
+        <PhaseCarousel />
         <Promise />
         <Reveal
           as="footer"
