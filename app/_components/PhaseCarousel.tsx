@@ -123,7 +123,7 @@ export function PhaseCarousel() {
                 transition: `opacity 700ms ${EASE}`,
               }}
             >
-              <div className="flex h-full flex-col items-center px-6 pt-[clamp(2rem,7vh,5.5rem)] pb-[11rem] lg:pb-[clamp(7.5rem,20vh,12rem)]">
+              <div className="flex h-full flex-col items-center px-8 pt-[clamp(2rem,7vh,5.5rem)] pb-[11rem] lg:px-6 lg:pb-[clamp(7.5rem,20vh,12rem)]">
                 <h2 className="heading-display w-full max-w-[18ch] self-start whitespace-normal text-left text-[clamp(2.5rem,11vw,3.25rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance] lg:max-w-none lg:self-center lg:whitespace-nowrap lg:text-center lg:text-[clamp(1.25rem,5vw,2.875rem)] lg:leading-[1.05]">
                   {p.title}
                 </h2>
@@ -139,7 +139,7 @@ export function PhaseCarousel() {
 
           {/* Display-only tabs: per-phase descriptions; active is bright with a
               filling line, the rest a dim, empty track. */}
-          <div className="absolute inset-x-0 bottom-0 z-[2] px-6 pb-7 lg:px-10 lg:pb-10">
+          <div className="absolute inset-x-0 bottom-0 z-[2] px-8 pb-7 lg:px-10 lg:pb-10">
             {/* Desktop: all four. */}
             <div className="mx-auto hidden max-w-[1240px] grid-cols-4 gap-8 lg:grid">
               {PHASES.map((p, i) => {
