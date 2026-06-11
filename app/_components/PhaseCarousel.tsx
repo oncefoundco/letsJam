@@ -127,7 +127,7 @@ export function PhaseCarousel() {
                   is centered with one constant gap between every element, framed
                   by equal top/bottom padding. Desktop keeps the flex-1 window
                   centering and the separate bottom-tab grid. */}
-              <div className="flex h-full flex-col justify-center px-8 py-[clamp(2rem,5vh,3.5rem)] lg:items-center lg:justify-start lg:px-6 lg:pt-[clamp(2rem,7vh,5.5rem)] lg:pb-[clamp(7.5rem,20vh,12rem)]">
+              <div className="flex h-full flex-col justify-center px-8 py-[clamp(3rem,7vh,4.5rem)] lg:items-center lg:justify-start lg:px-6 lg:pt-[clamp(2rem,7vh,5.5rem)] lg:pb-[clamp(7.5rem,20vh,12rem)]">
                 <h2 className="heading-display w-full max-w-[18ch] whitespace-normal text-left text-[clamp(2.5rem,11vw,3.25rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance] lg:max-w-none lg:self-center lg:whitespace-nowrap lg:text-center lg:text-[clamp(1.25rem,5vw,2.875rem)] lg:leading-[1.05]">
                   {p.title}
                 </h2>
