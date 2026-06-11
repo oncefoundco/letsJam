@@ -200,7 +200,7 @@ export function RecapView({ data }: { data: RecapData }) {
                     key={p.slot}
                     className={`flex flex-col gap-2 rounded-2xl p-[18px] text-[#1a1a1a] ${
                       p.winner
-                        ? "border-2 border-[#1a1a1a] bg-jam-yellow"
+                        ? "border-2 border-[#1a1a1a] bg-[#FDFCE8]"
                         : "bg-[#f5f5f5]"
                     }`}
                   >
