@@ -125,7 +125,7 @@ const FOUNDERS = [
 
 function Promise() {
   return (
-    <section className="px-6 pb-24 md:px-8 lg:px-12 xl:px-[80px] 2xl:px-[117px]">
+    <section className="px-6 pt-16 pb-24 md:px-8 md:pt-24 lg:px-12 xl:px-[80px] 2xl:px-[117px]">
       <div className="flex w-full flex-col gap-12 rounded-[32px] bg-white p-8 md:p-16 lg:flex-row lg:items-start lg:gap-24 xl:gap-[120px] xl:p-32">
         <Reveal
           as="p"
