@@ -125,12 +125,12 @@ export function PhaseCarousel() {
           on globals.css being in the loaded CSS chunk (Turbopack dev can miss
           @keyframes edits without a restart). */}
       <style>{`@keyframes lj-phase-progress{from{transform:scaleX(0)}to{transform:scaleX(1)}}`}</style>
-      <Reveal as="section" className="px-3 pb-24 lg:px-4">
+      <Reveal as="section" className="w-full">
       <div
         role="region"
         aria-roledescription="carousel"
         aria-label="The four moves of a Jam"
-        className="relative aspect-[4/5] w-full overflow-hidden bg-[#0c0c0e] sm:aspect-[16/10] lg:aspect-auto lg:h-[100svh] lg:min-h-[640px]"
+        className="relative h-[100svh] min-h-[600px] w-full overflow-hidden bg-[#0c0c0e]"
       >
         {/* Slides: crossfade between the mockups. */}
         {PHASES.map((p, i) => (
