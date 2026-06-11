@@ -28,9 +28,23 @@ export default function Home() {
         <Promise />
         <Reveal
           as="footer"
-          className="px-8 py-12 text-center text-sm text-[color:var(--color-muted-ink)]"
+          className="flex flex-col items-center gap-3 px-8 py-12 text-center text-sm text-[color:var(--color-muted-ink)]"
         >
-          © {new Date().getFullYear()} letsJam · a Neverfound venture
+          <span>© {new Date().getFullYear()} letsJam · a Neverfound venture</span>
+          <span className="flex items-center gap-4">
+            <Link
+              href="/privacy"
+              className="underline-offset-2 transition-colors hover:text-black hover:underline"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="underline-offset-2 transition-colors hover:text-black hover:underline"
+            >
+              Terms &amp; Conditions
+            </Link>
+          </span>
         </Reveal>
       </div>
     </div>
