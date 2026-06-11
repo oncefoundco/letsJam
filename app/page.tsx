@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BrandShapes } from "@/app/_components/BrandShapes";
 import { Logo } from "@/app/_components/Logo";
+import { HeroVideo } from "@/app/_components/HeroVideo";
 import { LogoIntro } from "@/app/_components/LogoIntro";
 import { PhaseCarousel } from "@/app/_components/PhaseCarousel";
 import { Reveal } from "@/app/_components/Reveal";
@@ -51,43 +52,36 @@ export default function Home() {
 }
 
 function Hero() {
-  // Full-screen hero (Figma redesign): a single photo with the logo top-left and
-  // the headline / subcopy / CTA bottom-left over a dark corner gradient.
+  // Full-screen hero (Figma redesign). Two layouts share one markup:
+  //  • mobile (portrait video): logo top-center, copy near the top
+  //  • desktop (landscape video): logo top-left, copy bottom-left
   return (
     <section className="relative h-[100svh] min-h-[600px] w-full overflow-hidden">
-      {/* Ambient background video; the still is the poster so the first frame
-          paints instantly and serves as the fallback. */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        poster="/landing/hero-figma.jpg"
-        aria-hidden
-        className="lj-zoom absolute inset-0 h-full w-full object-cover object-center"
-      >
-        <source src="/landing/hero.mp4" type="video/mp4" />
-      </video>
+      <HeroVideo className="lj-zoom absolute inset-0 h-full w-full object-cover object-center" />
 
-      {/* Legibility: darken the bottom-left (copy) and a touch of the top-left
-          (logo), fading to clear toward the top-right. */}
+      {/* Legibility. Mobile: darken the top (logo + copy sit up there).
+          Desktop: darken the bottom-left corner. */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(125%_120%_at_0%_100%,rgba(0,0,0,0.80)_0%,rgba(0,0,0,0.38)_34%,rgba(0,0,0,0)_64%)]"
+        className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.62)_0%,rgba(0,0,0,0.18)_30%,rgba(0,0,0,0)_55%)] md:hidden"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 hidden bg-[radial-gradient(125%_120%_at_0%_100%,rgba(0,0,0,0.80)_0%,rgba(0,0,0,0.38)_34%,rgba(0,0,0,0)_64%)] md:block"
       />
 
-      {/* Logo, top-left. data-logo-target: LogoIntro flies the splash logo onto
-          this exact box, then reveals it. */}
-      <div className="absolute left-[clamp(1.25rem,5vw,99px)] top-[clamp(1.25rem,4.5vh,78px)] z-[2]">
+      {/* Logo. Mobile: top-center. Desktop: top-left. data-logo-target: LogoIntro
+          flies the splash logo onto this exact box, then reveals it. */}
+      <div className="absolute left-1/2 top-[clamp(1.25rem,3.5vh,78px)] z-[2] -translate-x-1/2 md:left-[clamp(1.25rem,5vw,99px)] md:translate-x-0">
         <span data-logo-target className="inline-flex">
           <Logo light />
         </span>
       </div>
 
-      {/* Content, bottom-left. */}
-      <div className="absolute bottom-[clamp(2.5rem,12vh,170px)] left-[clamp(1.25rem,5vw,99px)] z-[2] flex max-w-[min(727px,88vw)] flex-col gap-[clamp(1.25rem,3vh,2.5rem)]">
+      {/* Content. Mobile: top-left (upper area). Desktop: bottom-left. */}
+      <div className="absolute left-[clamp(1.25rem,5vw,99px)] right-[clamp(1.25rem,5vw,99px)] top-[clamp(5rem,16vh,8rem)] z-[2] flex max-w-[min(727px,90vw)] flex-col gap-[clamp(1.25rem,3vh,2.5rem)] md:right-auto md:top-auto md:bottom-[clamp(2.5rem,12vh,170px)]">
         <h1
-          className="lj-lift heading-display text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.95] tracking-[-0.03em] text-white [text-wrap:balance]"
+          className="lj-lift heading-display text-[clamp(2.25rem,6vw,4.5rem)] leading-[0.98] tracking-[-0.03em] text-white [text-wrap:balance]"
           style={{ ["--lj-delay" as string]: "90ms" }}
         >
           The fastest way to get your team{" "}
