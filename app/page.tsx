@@ -143,7 +143,7 @@ function Promise() {
 
         <div className="flex w-full max-w-[994px] flex-col gap-12">
           <Reveal
-            className="flex flex-col gap-6 text-[clamp(1.125rem,2.4vw,2.75rem)] leading-[1.3] tracking-[-0.01em] text-[color:var(--color-muted-ink)] sm:leading-[1.25]"
+            className="flex flex-col gap-5 text-[clamp(1rem,1.5vw,1.5rem)] leading-[1.4] tracking-[-0.01em] text-[color:var(--color-muted-ink)] sm:leading-[1.4]"
             style={dmSans}
             delay={80}
           >
