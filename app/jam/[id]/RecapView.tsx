@@ -307,7 +307,7 @@ function DecisionNote({ data }: { data: RecapData }) {
   return (
     <section id="recap-decision" className="scroll-mt-28">
       {data.result ? (
-        <div className="flex -rotate-1 flex-col gap-3 rounded-sm bg-jam-yellow p-6 shadow-[0_8px_24px_rgba(26,26,26,0.18)] transition-transform duration-200 hover:rotate-0">
+        <div className="flex -rotate-1 flex-col gap-3 rounded-sm bg-jam-yellow p-6 transition-transform duration-200 hover:rotate-0">
           <p
             className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
             style={PS}
