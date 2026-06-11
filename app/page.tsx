@@ -80,7 +80,7 @@ function Hero() {
           this exact box, then reveals it. */}
       <div className="absolute left-[clamp(1.25rem,5vw,99px)] top-[clamp(1.25rem,4.5vh,78px)] z-[2]">
         <span data-logo-target className="inline-flex">
-          <Logo />
+          <Logo light />
         </span>
       </div>
 

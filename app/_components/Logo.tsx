@@ -1,10 +1,22 @@
-export function Logo({ className }: { className?: string }) {
+export function Logo({
+  className,
+  light = false,
+}: {
+  className?: string;
+  // light: white "jam" with a soft shadow, for use over photos/video (the
+  // "lets" pill stays light-blue with black text — it reads on any background).
+  light?: boolean;
+}) {
   return (
     <div
       className={`relative inline-grid grid-cols-[max-content] ${className ?? ""}`}
     >
       <p
-        className="col-start-1 row-start-1 ml-[42px] text-[28px] leading-[0.9] tracking-[-1.12px] text-black"
+        className={`col-start-1 row-start-1 ml-[42px] text-[28px] leading-[0.9] tracking-[-1.12px] ${
+          light
+            ? "text-white [text-shadow:0_1px_16px_rgba(0,0,0,0.35)]"
+            : "text-black"
+        }`}
         style={{ fontFamily: "var(--font-logo)" }}
       >
         jam
