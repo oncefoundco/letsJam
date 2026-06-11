@@ -84,7 +84,7 @@ function Body({ jams }: { jams: HostJamSummary[] }) {
 
 function MainCard() {
   return (
-    <section className="flex min-w-0 flex-1 flex-col justify-between gap-12 rounded-3xl bg-white p-6 md:p-8 lg:p-12">
+    <section className="flex min-w-0 flex-1 flex-col justify-between gap-12 rounded-3xl bg-white p-6 md:p-8 lg:self-start lg:p-12">
       <StartForm />
     </section>
   );
