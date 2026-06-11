@@ -172,23 +172,18 @@ export function PhaseCarousel() {
 
           <div className="flex-1" />
 
-          {/* Tabs — per-phase descriptions; active is bright with a filling line. */}
-          <nav
-            aria-label="Jam phases"
-            className="px-4 pb-7 sm:px-6 lg:px-10 lg:pb-10"
-          >
+          {/* Tabs — display-only per-phase descriptions; active is bright with a
+              filling line (not clickable; the carousel only auto-advances). */}
+          <div className="px-4 pb-7 sm:px-6 lg:px-10 lg:pb-10">
             {/* Desktop: all four, name + description + progress line. */}
             <div className="mx-auto hidden max-w-[1240px] grid-cols-4 gap-8 lg:grid">
               {PHASES.map((p, i) => {
                 const isActive = i === active;
                 return (
-                  <button
+                  <div
                     key={p.key}
-                    type="button"
-                    onClick={() => setActive(i)}
                     aria-current={isActive}
-                    aria-label={`Show ${p.key}`}
-                    className="flex h-full flex-col items-start text-left outline-none transition-opacity duration-300 focus-visible:opacity-100"
+                    className="flex h-full flex-col items-start text-left transition-opacity duration-300"
                     style={{ opacity: isActive ? 1 : 0.5 }}
                   >
                     <span
@@ -212,7 +207,7 @@ export function PhaseCarousel() {
                         activeKey={active}
                       />
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -248,23 +243,17 @@ export function PhaseCarousel() {
               </div>
               <div className="mt-4 flex gap-2">
                 {PHASES.map((p, i) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => setActive(i)}
-                    aria-label={`Show ${p.key}`}
-                    className="min-w-0 flex-1 py-1 outline-none"
-                  >
+                  <div key={p.key} className="min-w-0 flex-1 py-1">
                     <ProgressBar
                       active={i === active}
                       reduced={reduced}
                       activeKey={active}
                     />
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
-          </nav>
+          </div>
         </div>
       </div>
     </Reveal>
