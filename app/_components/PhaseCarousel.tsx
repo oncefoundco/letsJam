@@ -8,8 +8,8 @@ import { Reveal } from "@/app/_components/Reveal";
  * The four moves of a Jam, as an auto-advancing feature carousel (everyday.io
  * pattern). Each slide is a near full-screen mockup with the active phase's
  * headline up top and the per-phase descriptions in the bottom tabs — the
- * active tab is bright, reveals its phase mark (▶ ■ ● ◆), and its underline
- * fills over the slide duration as the progress indicator. Every mockup is a
+ * active tab is bright and its underline fills over the slide duration as the
+ * progress indicator while the others stay a dim, empty track. Every mockup is a
  * light app window on a dark studio backdrop, so a top/bottom gradient keeps the
  * white headline + tabs legible while the centered window stays clear.
  * Auto-advance runs continuously (no hover/focus pause); prefers-reduced-motion
@@ -24,15 +24,12 @@ const SLIDE_MS = 6000;
 
 const dmSans = { fontFamily: "var(--font-dm-sans)" } as const;
 
-type Shape = "triangle" | "square" | "circle" | "diamond";
-
 type Phase = {
   key: string;
   title: string;
   lead: string;
   image: string;
   alt: string;
-  icon: Shape;
 };
 
 const PHASES: Phase[] = [
@@ -42,7 +39,6 @@ const PHASES: Phase[] = [
     lead: "Talk the problem through out loud while Jam quietly captures the decisions you're actually making.",
     image: "/landing/mock-converse.png",
     alt: "The letsJam call: the team talking the problem through",
-    icon: "triangle",
   },
   {
     key: "Diverge",
@@ -50,7 +46,6 @@ const PHASES: Phase[] = [
     lead: "Everyone writes their own take first, so no one just nods along with whoever's loudest.",
     image: "/landing/mock-diverge.png",
     alt: "A private space to write down your own thinking",
-    icon: "square",
   },
   {
     key: "Collaborate",
@@ -58,7 +53,6 @@ const PHASES: Phase[] = [
     lead: "Priorities go up at once, Jam groups the overlaps, and you vote on what a good answer has to nail.",
     image: "/landing/mock-collaborate.png",
     alt: "Dot-voting to shape the options together",
-    icon: "circle",
   },
   {
     key: "Decide",
@@ -66,48 +60,8 @@ const PHASES: Phase[] = [
     lead: "Weigh the options against what matters and vote. If a few still feel off, you go again.",
     image: "/landing/mock-decide.png",
     alt: "The decision the whole room is behind",
-    icon: "diamond",
   },
 ];
-
-// Each phase's mark: ▶ Converse, ■ Diverge, ● Collaborate, ◆ Decide.
-function PhaseIcon({
-  shape,
-  className,
-  style,
-}: {
-  shape: Shape;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const p = { className, style, viewBox: "0 0 24 24", fill: "currentColor" } as const;
-  switch (shape) {
-    case "triangle":
-      return (
-        <svg {...p} aria-hidden>
-          <path d="M6 3.5l14.5 8.5L6 20.5z" />
-        </svg>
-      );
-    case "square":
-      return (
-        <svg {...p} aria-hidden>
-          <rect x="4" y="4" width="16" height="16" rx="3" />
-        </svg>
-      );
-    case "circle":
-      return (
-        <svg {...p} aria-hidden>
-          <circle cx="12" cy="12" r="9" />
-        </svg>
-      );
-    case "diamond":
-      return (
-        <svg {...p} aria-hidden>
-          <path d="M12 2.2l9.8 9.8-9.8 9.8L2.2 12z" />
-        </svg>
-      );
-  }
-}
 
 function ProgressBar({
   active,
@@ -218,12 +172,12 @@ export function PhaseCarousel() {
 
           <div className="flex-1" />
 
-          {/* Tabs — per-phase descriptions; active is bright + shows its mark. */}
+          {/* Tabs — per-phase descriptions; active is bright with a filling line. */}
           <nav
             aria-label="Jam phases"
             className="px-4 pb-7 sm:px-6 lg:px-10 lg:pb-10"
           >
-            {/* Desktop: all four, name + description + mark + progress. */}
+            {/* Desktop: all four, name + description + progress line. */}
             <div className="mx-auto hidden max-w-[1240px] grid-cols-4 gap-8 lg:grid">
               {PHASES.map((p, i) => {
                 const isActive = i === active;
@@ -237,20 +191,11 @@ export function PhaseCarousel() {
                     className="flex h-full flex-col items-start text-left outline-none transition-opacity duration-300 focus-visible:opacity-100"
                     style={{ opacity: isActive ? 1 : 0.5 }}
                   >
-                    {/* Mark appears next to the name on the active tab; its
-                        slot is always reserved so the name never shifts. */}
-                    <span className="flex items-center gap-2.5">
-                      <PhaseIcon
-                        shape={p.icon}
-                        className="h-4 w-4 flex-none text-white transition-opacity duration-300"
-                        style={{ opacity: isActive ? 1 : 0 }}
-                      />
-                      <span
-                        className="text-[18px] font-medium leading-none text-white"
-                        style={dmSans}
-                      >
-                        {p.key}
-                      </span>
+                    <span
+                      className="text-[18px] font-medium leading-none text-white"
+                      style={dmSans}
+                    >
+                      {p.key}
                     </span>
                     <span
                       className="mt-3 text-[13px] leading-[1.4] text-white/75"
@@ -258,7 +203,8 @@ export function PhaseCarousel() {
                     >
                       {p.lead}
                     </span>
-                    {/* Progress bar, pinned to the bottom (unchanged). */}
+                    {/* Bottom-pinned progress line: the active one fills, the
+                        rest stay an empty gray track. */}
                     <span className="mt-auto w-full pt-5">
                       <ProgressBar
                         active={isActive}
@@ -286,13 +232,9 @@ export function PhaseCarousel() {
                     }}
                   >
                     <p
-                      className="flex items-center gap-2.5 text-[18px] font-medium leading-none text-white"
+                      className="text-[18px] font-medium leading-none text-white"
                       style={dmSans}
                     >
-                      <PhaseIcon
-                        shape={p.icon}
-                        className="h-4 w-4 flex-none text-white"
-                      />
                       {p.key}
                     </p>
                     <p
