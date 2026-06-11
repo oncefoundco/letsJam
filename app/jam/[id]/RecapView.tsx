@@ -198,8 +198,8 @@ export function RecapView({ data }: { data: RecapData }) {
                 {data.perspectives.map((p) => (
                   <div
                     key={p.slot}
-                    className={`flex flex-col gap-2 rounded-2xl p-[18px] ${
-                      p.winner ? "bg-[#1a1a1a] text-white" : "bg-[#f5f5f5] text-[#1a1a1a]"
+                    className={`flex flex-col gap-2 rounded-2xl bg-[#f5f5f5] p-[18px] text-[#1a1a1a] ${
+                      p.winner ? "border-2 border-[#1a1a1a]" : ""
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -220,14 +220,14 @@ export function RecapView({ data }: { data: RecapData }) {
                     </p>
                     {p.body ? (
                       <p
-                        className={`text-[14px] leading-[1.5] ${p.winner ? "text-white/70" : "text-[#1a1a1a]/60"}`}
+                        className="text-[14px] leading-[1.5] text-[#1a1a1a]/60"
                         style={PS}
                       >
                         {p.body}
                       </p>
                     ) : null}
                     <p
-                      className={`text-[13px] leading-[1.4] ${p.winner ? "text-white/70" : "text-[#1a1a1a]/50"}`}
+                      className="text-[13px] leading-[1.4] text-[#1a1a1a]/50"
                       style={PS}
                       suppressHydrationWarning
                     >
@@ -307,7 +307,7 @@ function DecisionNote({ data }: { data: RecapData }) {
   return (
     <section id="recap-decision" className="scroll-mt-28">
       {data.result ? (
-        <div className="flex -rotate-1 flex-col gap-3 rounded-sm bg-jam-yellow p-6 transition-transform duration-200 hover:rotate-0">
+        <div className="flex -rotate-1 flex-col gap-3 rounded-xl bg-jam-yellow p-6 transition-transform duration-200 hover:rotate-0">
           <p
             className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
             style={PS}
