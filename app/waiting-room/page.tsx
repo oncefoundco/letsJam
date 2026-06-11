@@ -55,10 +55,11 @@ export default async function WaitingRoomPage({
         participants={session.participants}
         createdAt={session.createdAt}
       />
-      <PageGuide>
-        You&apos;re in the waiting room. The host starts the session once
-        everyone&apos;s here. It runs in a few short steps: talk it through,
-        reflect on your own, then vote on a direction together.
+      <PageGuide
+        title="You're in the waiting room"
+        image="/guides/guide-waiting-room.png"
+      >
+        The session starts once everyone&apos;s here.
       </PageGuide>
       <InviteModal />
       <Suspense fallback={null}>

@@ -117,12 +117,27 @@ function Body({
         participants={participants}
         participantLabel="In the room"
       />
-      <PageGuide>
+      <PageGuide
+        title={
+          !single
+            ? "Reflect privately"
+            : refining
+              ? "The room asked for another pass"
+              : "Propose your solution"
+        }
+        image={
+          !single
+            ? "/guides/guide-reflection.png"
+            : refining
+              ? "/guides/guide-refine.png"
+              : "/guides/guide-proposal.png"
+        }
+      >
         {!single
-          ? "Reflect privately. Write the three things any answer has to solve. Nothing's shared until everyone's in, then your lists get combined and voted on."
+          ? "Write the three priorities your solution has to solve. Nothing's shared until everyone's submitted, then your priorities get combined and voted on."
           : refining
-            ? "The room asked for another pass. Read what came up, then sharpen your answer with it in mind. You'll vote once more after."
-            : "Reflect privately. Propose the one solution you'd back. Once everyone's in, your answers become the options the room votes on."}
+            ? "Read what came up, then sharpen your answer with it in mind. You'll vote once more after."
+            : "Privately, propose the one solution you'd back. Once everyone's in, your answers become the options the room votes on."}
       </PageGuide>
     </div>
   );

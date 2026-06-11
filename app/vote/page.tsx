@@ -122,10 +122,17 @@ function Body({
         participants={participants}
         participantLabel="In the room"
       />
-      <PageGuide>
+      <PageGuide
+        title={
+          round >= 2 ? "Lock the decision" : "You have five dots to spend"
+        }
+        image={
+          round >= 2 ? "/guides/guide-ab-vote.png" : "/guides/guide-dot-vote.png"
+        }
+      >
         {round >= 2
-          ? "Vote to lock the decision. Back the perspective you'd stand behind, weighed against your priorities. If two or more feel something's missing, the room refines and goes once more."
-          : "Spend your dots on the options you'd back. Pile them on one or spread them out. The option with the most dots becomes the room's direction."}
+          ? "Back the perspective you'd stand behind, weighed against the priorities you wrote earlier. If two or more feel something's missing, the room refines and goes once more."
+          : "Back the priorities you believe in. Pile your dots on one or spread them out. The priority with the most dots becomes the room's direction."}
       </PageGuide>
     </div>
   );

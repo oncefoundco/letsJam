@@ -36,10 +36,10 @@ export default async function TheCallPage({
     <div className="relative flex min-h-screen flex-col bg-background">
       <Header />
       <Body sessionId={session.id} decision={decision} />
-      <PageGuide title="The outcome">
-        This is the call the room committed to, with the reasoning behind it.
-        It came from everyone&apos;s private thinking, combined and voted on, so
-        it&apos;s a decision the whole room owns.
+      <PageGuide title="Amazing" image="/guides/guide-outcome.png">
+        Your team is aligned! This is the call the room committed to, with the
+        reasoning behind it. It came from everyone&apos;s private thinking,
+        combined and voted on, so it&apos;s a decision the whole room owns.
       </PageGuide>
       {decision ? <Confetti /> : null}
     </div>

@@ -39,10 +39,9 @@ export default async function StartSessionPage() {
           auth modal. Once signed in, render the live, interactive form. */}
       {authed ? <Body jams={jams} /> : <SignupTease />}
       {authed ? (
-        <PageGuide>
-          Set up your Jam: name the challenge, describe it, add who&apos;s
-          joining and any files for context, then invite your team. Once
-          they&apos;re in, you&apos;ll run a short structured session together.
+        <PageGuide title="Set up your Jam" image="/guides/guide-start.png">
+          Name your Jam and describe your challenge. Invite everyone who needs
+          to join. Add any files for context and schedule your Jam.
         </PageGuide>
       ) : null}
       <Suspense fallback={null}>

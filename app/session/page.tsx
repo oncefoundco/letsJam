@@ -85,10 +85,21 @@ export default async function SessionPage({
           participantLabel="In the room"
         />
       </div>
-      <PageGuide>
+      <PageGuide
+        title={
+          isRound2
+            ? "Spend five minutes to discuss potential solutions"
+            : "Talk it through"
+        }
+        image={
+          isRound2
+            ? "/guides/guide-second-call.png"
+            : "/guides/guide-live-call.png"
+        }
+      >
         {isRound2
-          ? "This is the second call. Talk through the option the room chose and how to sharpen it. When the host moves on, you'll each propose your solution privately."
-          : "This is the live call. Talk the challenge through as a group. When the host moves the room on, you'll each reflect privately before anything is shared."}
+          ? "Talk through the direction the room chose: what's strong, what's missing, what would make it sharper. When the host moves on, you'll each propose your solution privately."
+          : "You have five minutes. Only discuss what the problem needs to solve. The solution will come later."}
       </PageGuide>
       <Suspense fallback={null}>
         <JoinGate
