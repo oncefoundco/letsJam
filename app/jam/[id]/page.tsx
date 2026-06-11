@@ -26,14 +26,14 @@ export default async function JamRecapPage({
 }) {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Auth and the recap load are independent — run them concurrently. A
+  // malformed id makes the uuid cast throw — treat it like a missing jam.
+  const [userResult, session] = await Promise.all([
+    createClient().then((c) => c.auth.getUser()),
+    loadSession(id).catch(() => null),
+  ]);
+  const user = userResult.data.user;
   if (!user) redirect("/start");
-
-  // A malformed id makes the uuid cast throw — treat it like a missing jam.
-  const session = await loadSession(id).catch(() => null);
   // created_by is only written for signed-in hosts; jams without it (guests,
   // pre-history jams) have no owner to show a recap to.
   if (!session || !session.createdBy || session.createdBy !== user.id) {
