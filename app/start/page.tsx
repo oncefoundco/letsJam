@@ -90,22 +90,29 @@ function MainCard() {
   );
 }
 
-// Labels for the jam_status enum. "Decided" leads with the outcome — the #1
-// thing a host scans this list for.
+// Fallback line for jams that haven't landed on a decision yet.
 const STATUS_LABELS: Record<string, string> = {
-  completed: "Decided",
-  active: "In progress",
-  waiting: "Waiting",
+  active: "In progress — no decision yet",
+  waiting: "Never started",
   scheduled: "Scheduled",
   draft: "Draft",
   archived: "Archived",
 };
 
+// "June 18th, 2026" — long month + ordinal day, matching the card's date pill.
 function jamDate(ts: number): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(ts));
+  const d = new Date(ts);
+  const day = d.getDate();
+  const suffix =
+    day % 10 === 1 && day !== 11
+      ? "st"
+      : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+          ? "rd"
+          : "th";
+  const month = new Intl.DateTimeFormat("en-US", { month: "long" }).format(d);
+  return `${month} ${day}${suffix}, ${d.getFullYear()}`;
 }
 
 function PreviousJams({ jams }: { jams: HostJamSummary[] }) {
@@ -147,43 +154,52 @@ function PreviousJams({ jams }: { jams: HostJamSummary[] }) {
 }
 
 function JamCard({ jam }: { jam: HostJamSummary }) {
-  const decided = jam.status === "completed";
-  const neverStarted = !jam.startedAt && !decided;
   return (
     <Link
       href={`/jam/${jam.id}`}
-      className="flex flex-col gap-3 rounded-3xl bg-white p-6 transition-colors hover:bg-neutral-50"
+      className="flex flex-col gap-5 rounded-3xl bg-white p-6 transition-colors hover:bg-neutral-50 md:p-7"
       style={{ fontFamily: "var(--font-public-sans)" }}
     >
-      <div className="flex items-center justify-between gap-4">
-        <span
-          className={`rounded-full px-3 py-1.5 text-[12px] font-semibold leading-none ${
-            decided ? "bg-jam-yellow text-[#1a1a1a]" : "bg-[#f5f5f5] text-[#1a1a1a]/70"
-          }`}
-        >
-          {STATUS_LABELS[jam.status] ?? jam.status}
-        </span>
-        <span className="text-[13px] leading-none text-[#1a1a1a]/50">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="rounded-full bg-[#f5f5f5] px-4 py-2.5 text-[14px] leading-none text-[#1a1a1a]">
           {jamDate(jam.createdAt)}
         </span>
+        {jam.participants.length ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-[14px] font-semibold leading-none text-[#1a1a1a]">
+              Attendees
+            </span>
+            {jam.participants.map((p, i) => (
+              <span
+                key={i}
+                className="rounded-full px-3 py-1.5 text-[12px] leading-none text-[#1a1a1a]"
+                style={{ backgroundColor: p.bg }}
+              >
+                {p.name}
+              </span>
+            ))}
+          </span>
+        ) : null}
       </div>
-      <p className="text-[18px] font-medium leading-[1.35] text-[#1a1a1a]">
-        {jam.title}
+      <p className="truncate text-[22px] leading-[1.2] text-[#1a1a1a] md:text-[26px]">
+        Q: {jam.title}
       </p>
       {jam.result ? (
-        <p className="text-[15px] italic leading-[1.5] text-muted-ink">
-          → {jam.result}
+        <div className="flex flex-col gap-2 rounded-2xl bg-[#f5f5f5] p-5">
+          <p className="text-[16px] font-semibold leading-[1.3] text-[#1a1a1a]">
+            {jam.result.title}
+          </p>
+          {jam.result.body ? (
+            <p className="line-clamp-4 text-[13px] leading-[1.6] text-[#1a1a1a]/70">
+              {jam.result.body}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-[15px] italic leading-none text-[#1a1a1a]/40">
+          {STATUS_LABELS[jam.status] ?? "No decision yet"}
         </p>
-      ) : neverStarted ? (
-        <p className="text-[15px] italic leading-[1.5] text-[#1a1a1a]/40">
-          Never started
-        </p>
-      ) : null}
-      <p className="text-[13px] leading-none text-[#1a1a1a]/50">
-        {jam.participants} {jam.participants === 1 ? "person" : "people"}
-        {" · "}
-        {jam.rounds} {jam.rounds === 1 ? "round" : "rounds"}
-      </p>
+      )}
     </Link>
   );
 }

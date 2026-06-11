@@ -644,16 +644,18 @@ export type HostJamSummary = {
   createdAt: number;
   startedAt?: number;
   rounds: number;
-  participants: number;
-  // Title of what the room landed on — the winning option (dot vote) or the
-  // winning perspective (A/B vote). Absent until the jam resolves.
-  result?: string;
+  // Everyone in the room, in join order, with their avatar colors — the card
+  // shows them as name pills.
+  participants: { name: string; bg: string }[];
+  // What the room landed on — the winning option (dot vote) or the winning
+  // perspective (A/B vote). Absent until the jam resolves.
+  result?: { title: string; body?: string };
 };
 
 // The signed-in host's jam history, newest first. One aggregated statement
 // (the transaction-mode pooler can't pipeline — see loadVoteStatus) that
-// resolves the winner's title from either voting model: jam_decisions →
-// jam_options for dot votes, outcomes → perspectives for A/B votes.
+// resolves the winner from either voting model: jam_decisions → jam_options
+// for dot votes, outcomes → perspectives for A/B votes.
 export async function loadHostJams(userId: string): Promise<HostJamSummary[]> {
   const rows = await sql<
     {
@@ -663,18 +665,23 @@ export async function loadHostJams(userId: string): Promise<HostJamSummary[]> {
       created_at: Date;
       started_at: Date | null;
       current_round: number;
-      participants: number;
-      result: string | null;
+      participants: { name: string; bg: string }[];
+      result: { title: string | null; body: string | null } | null;
     }[]
   >`
     select j.id, j.title, j.status::text as status, j.created_at, j.started_at, j.current_round,
-      (select count(*)::int from jam_participants p where p.jam_id = j.id) as participants,
       coalesce(
-        (select o.title from jam_decisions d
+        (select json_agg(json_build_object('name', p.name, 'bg', p.color) order by p.joined_at)
+           from jam_participants p where p.jam_id = j.id),
+        '[]') as participants,
+      coalesce(
+        (select json_build_object('title', o.title, 'body', o.body)
+           from jam_decisions d
            join jam_options o on o.jam_id = d.jam_id and o.id = d.option_id
           where d.jam_id = j.id
           order by d.round desc limit 1),
-        (select pe.title from outcomes oc
+        (select json_build_object('title', pe.title, 'body', pe.body)
+           from outcomes oc
            join perspectives pe
              on pe.jam_id = oc.jam_id and pe.round = oc.round and pe.slot = oc.choice
           where oc.jam_id = j.id
@@ -692,6 +699,8 @@ export async function loadHostJams(userId: string): Promise<HostJamSummary[]> {
     startedAt: ms(r.started_at) ?? undefined,
     rounds: r.current_round,
     participants: r.participants,
-    result: r.result ?? undefined,
+    result: r.result?.title
+      ? { title: r.result.title, body: r.result.body ?? undefined }
+      : undefined,
   }));
 }
