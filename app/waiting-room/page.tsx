@@ -25,14 +25,15 @@ export default async function WaitingRoomPage({
 }) {
   const { session: sessionId } = await searchParams;
   if (!sessionId) notFound();
-  const session = await getSession(sessionId);
-  if (!session) notFound();
-
+  // getSession (Redis/Postgres) and auth (Supabase Auth API) are independent
+  // — run them concurrently so the page pays one round trip, not two.
   // Joiners must sign in and set name + color — same gate as the host.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [session, userResult] = await Promise.all([
+    getSession(sessionId),
+    createClient().then((c) => c.auth.getUser()),
+  ]);
+  if (!session) notFound();
+  const user = userResult.data.user;
   const meta = user?.user_metadata ?? {};
   const authed = Boolean(user);
   const initialName =

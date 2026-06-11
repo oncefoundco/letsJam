@@ -26,16 +26,17 @@ export default async function SessionPage({
 }) {
   const { session: sessionId } = await searchParams;
   if (!sessionId) notFound();
-  const session = await getSession(sessionId);
-  if (!session) notFound();
-
+  // getSession (Redis/Postgres) and auth (Supabase Auth API) are independent
+  // — run them concurrently so the page pays one round trip, not two.
   // Late joiners who land straight on the call (meeting already started) must
   // sign in and set their name + color, same as the waiting-room gate. Existing
   // participants have a localStorage record, so the gate stays out of their way.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [session, userResult] = await Promise.all([
+    getSession(sessionId),
+    createClient().then((c) => c.auth.getUser()),
+  ]);
+  if (!session) notFound();
+  const user = userResult.data.user;
   const meta = user?.user_metadata ?? {};
   const authed = Boolean(user);
   const initialName =
