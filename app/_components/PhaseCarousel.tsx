@@ -123,14 +123,14 @@ export function PhaseCarousel() {
                 transition: `opacity 700ms ${EASE}`,
               }}
             >
-              <div className="flex h-full flex-col items-center px-6 pt-[clamp(2rem,7vh,5.5rem)] pb-[clamp(10.5rem,20vh,11.5rem)] lg:pb-[clamp(7.5rem,20vh,12rem)]">
+              <div className="flex h-full flex-col items-center px-6 pt-[clamp(2rem,7vh,5.5rem)] pb-[11rem] lg:pb-[clamp(7.5rem,20vh,12rem)]">
                 <h2 className="heading-display w-full max-w-[18ch] self-start whitespace-normal text-left text-[clamp(2.5rem,11vw,3.25rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance] lg:max-w-none lg:self-center lg:whitespace-nowrap lg:text-center lg:text-[clamp(1.25rem,5vw,2.875rem)] lg:leading-[1.05]">
                   {p.title}
                 </h2>
-                {/* Window gets its own padded box so it always keeps a clear gap
-                    above the bottom (Decide/Converse) section, even on short
-                    phone viewports where the toolbar eats height. */}
-                <div className="mt-[clamp(1.5rem,4vh,3rem)] flex w-full flex-1 items-center justify-center pb-[clamp(2rem,4vh,3rem)] lg:pb-0">
+                {/* The window is centered in the space between the headline and
+                    the bottom (Decide/Converse) section — pb above matches the
+                    copy block's height, so the gaps above and below are equal. */}
+                <div className="flex w-full flex-1 items-center justify-center lg:mt-[clamp(1.5rem,4vh,3rem)]">
                   <PhaseMockup variant={p.key} />
                 </div>
               </div>
@@ -178,7 +178,7 @@ export function PhaseCarousel() {
             {/* Mobile: active phase's copy, then a row of progress segments.
                 Left edge tracks the SVG window (px-6 + max-w-[860px]). */}
             <div className="mx-auto w-full max-w-[860px] lg:hidden">
-              <div className="relative min-h-[7rem]">
+              <div className="relative min-h-[8rem]">
                 {PHASES.map((p, i) => (
                   <div
                     key={p.key}
