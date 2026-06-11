@@ -123,23 +123,53 @@ export function PhaseCarousel() {
                 transition: `opacity 700ms ${EASE}`,
               }}
             >
-              <div className="flex h-full flex-col items-center px-8 pt-[clamp(2rem,7vh,5.5rem)] pb-[11rem] lg:px-6 lg:pb-[clamp(7.5rem,20vh,12rem)]">
-                <h2 className="heading-display w-full max-w-[18ch] self-start whitespace-normal text-left text-[clamp(2.5rem,11vw,3.25rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance] lg:max-w-none lg:self-center lg:whitespace-nowrap lg:text-center lg:text-[clamp(1.25rem,5vw,2.875rem)] lg:leading-[1.05]">
+              {/* Mobile: the whole stack (headline → window → copy → progress)
+                  is centered with one constant gap between every element, framed
+                  by equal top/bottom padding. Desktop keeps the flex-1 window
+                  centering and the separate bottom-tab grid. */}
+              <div className="flex h-full flex-col justify-center px-8 py-[clamp(2rem,5vh,3.5rem)] lg:items-center lg:justify-start lg:px-6 lg:pt-[clamp(2rem,7vh,5.5rem)] lg:pb-[clamp(7.5rem,20vh,12rem)]">
+                <h2 className="heading-display w-full max-w-[18ch] whitespace-normal text-left text-[clamp(2.5rem,11vw,3.25rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance] lg:max-w-none lg:self-center lg:whitespace-nowrap lg:text-center lg:text-[clamp(1.25rem,5vw,2.875rem)] lg:leading-[1.05]">
                   {p.title}
                 </h2>
-                {/* The window is centered in the space between the headline and
-                    the bottom (Decide/Converse) section — pb above matches the
-                    copy block's height, so the gaps above and below are equal. */}
-                <div className="flex w-full flex-1 items-center justify-center lg:mt-[clamp(1.5rem,4vh,3rem)]">
+                <div className="mt-[clamp(1.75rem,4.5vh,2.75rem)] flex w-full items-center justify-center lg:mt-[clamp(1.5rem,4vh,3rem)] lg:flex-1">
                   <PhaseMockup variant={p.key} />
+                </div>
+                {/* Mobile phase copy, in-flow (desktop uses the bottom-tab grid). */}
+                <div className="mt-[clamp(1.75rem,4.5vh,2.75rem)] w-full max-w-[860px] lg:hidden">
+                  <p
+                    className="text-[clamp(1.5rem,5vw,2rem)] font-medium leading-none text-black"
+                    style={dmSans}
+                  >
+                    {p.key}
+                  </p>
+                  <p
+                    className="mt-3 max-w-[42ch] text-[clamp(1.125rem,4.5vw,1.5rem)] leading-[1.35] text-black/60 [text-wrap:balance]"
+                    style={dmSans}
+                  >
+                    {p.lead}
+                  </p>
+                </div>
+                {/* Mobile progress segments, in-flow so they're part of the
+                    bottom spacing. */}
+                <div className="mt-[clamp(1.75rem,4.5vh,2.75rem)] flex w-full max-w-[860px] gap-2 lg:hidden">
+                  {PHASES.map((seg, segIndex) => (
+                    <div key={seg.key} className="min-w-0 flex-1">
+                      <ProgressBar
+                        active={segIndex === active}
+                        reduced={reduced}
+                        activeKey={active}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           ))}
 
-          {/* Display-only tabs: per-phase descriptions; active is bright with a
-              filling line, the rest a dim, empty track. */}
-          <div className="absolute inset-x-0 bottom-0 z-[2] px-8 pb-7 lg:px-10 lg:pb-10">
+          {/* Display-only tabs (desktop only): per-phase descriptions; active is
+              bright with a filling line, the rest a dim, empty track. On mobile
+              the copy + progress live in the slide flow above. */}
+          <div className="absolute inset-x-0 bottom-0 z-[2] hidden lg:block lg:px-10 lg:pb-10">
             {/* Desktop: all four. */}
             <div className="mx-auto hidden max-w-[1240px] grid-cols-4 gap-8 lg:grid">
               {PHASES.map((p, i) => {
@@ -173,48 +203,6 @@ export function PhaseCarousel() {
                   </div>
                 );
               })}
-            </div>
-
-            {/* Mobile: active phase's copy, then a row of progress segments.
-                Left edge tracks the SVG window (px-6 + max-w-[860px]). */}
-            <div className="mx-auto w-full max-w-[860px] lg:hidden">
-              <div className="relative min-h-[8rem]">
-                {PHASES.map((p, i) => (
-                  <div
-                    key={p.key}
-                    aria-hidden={i !== active}
-                    className="absolute inset-0"
-                    style={{
-                      opacity: i === active ? 1 : 0,
-                      transition: `opacity 500ms ${EASE}`,
-                    }}
-                  >
-                    <p
-                      className="text-[clamp(1.5rem,5vw,2rem)] font-medium leading-none text-black"
-                      style={dmSans}
-                    >
-                      {p.key}
-                    </p>
-                    <p
-                      className="mt-3 max-w-[42ch] text-[clamp(1.125rem,4.5vw,1.5rem)] leading-[1.35] text-black/60 [text-wrap:balance]"
-                      style={dmSans}
-                    >
-                      {p.lead}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex gap-2">
-                {PHASES.map((p, i) => (
-                  <div key={p.key} className="min-w-0 flex-1">
-                    <ProgressBar
-                      active={i === active}
-                      reduced={reduced}
-                      activeKey={active}
-                    />
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
