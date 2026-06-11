@@ -63,6 +63,10 @@ const PHASES: Phase[] = [
   },
 ];
 
+// The active tab's line fills left-to-right over the slide duration (mirrors
+// everyday.io). The fill is rendered ONLY on the active tab and keyed by the
+// active index, so it mounts fresh — and replays — on every slide. Inactive
+// tabs are just an empty track.
 function ProgressBar({
   active,
   reduced,
@@ -73,18 +77,21 @@ function ProgressBar({
   activeKey: number;
 }) {
   return (
-    <span className="block h-[2px] w-full overflow-hidden bg-white/25">
-      <span
-        key={active ? `on-${activeKey}` : "off"}
-        className="block h-full w-full origin-left bg-white"
-        style={
-          active
-            ? reduced
+    <span className="block h-[2px] w-full overflow-hidden bg-white/20">
+      {active ? (
+        <span
+          key={activeKey}
+          className="block h-full w-full origin-left bg-white"
+          style={
+            reduced
               ? { transform: "scaleX(1)" }
-              : { animation: `lj-phase-progress ${SLIDE_MS}ms linear both` }
-            : { transform: "scaleX(0)" }
-        }
-      />
+              : {
+                  transform: "scaleX(0)",
+                  animation: `${SLIDE_MS}ms linear 0s 1 normal forwards lj-phase-progress`,
+                }
+          }
+        />
+      ) : null}
     </span>
   );
 }
@@ -113,7 +120,12 @@ export function PhaseCarousel() {
   }, [active, reduced]);
 
   return (
-    <Reveal as="section" className="px-3 pb-24 lg:px-4">
+    <>
+      {/* Keyframe shipped with the component so the progress fill never depends
+          on globals.css being in the loaded CSS chunk (Turbopack dev can miss
+          @keyframes edits without a restart). */}
+      <style>{`@keyframes lj-phase-progress{from{transform:scaleX(0)}to{transform:scaleX(1)}}`}</style>
+      <Reveal as="section" className="px-3 pb-24 lg:px-4">
       <div
         role="region"
         aria-roledescription="carousel"
@@ -257,5 +269,6 @@ export function PhaseCarousel() {
         </div>
       </div>
     </Reveal>
+    </>
   );
 }
