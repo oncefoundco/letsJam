@@ -28,7 +28,7 @@ hard. This schema gives every concept a table with real keys and constraints.
 | `reflections` | One per participant per round (`unique(jam_id, participant_id, round)`). |
 | `perspectives` | AI-generated A/B paths per round (`unique(jam_id, round, slot)`). |
 | `votes` | One per participant per round, `choice` ∈ {A,B,refine} (`unique(jam_id, participant_id, round)`). |
-| `refine_context` | Refine reasons carried into the next round's synthesis. |
+| `refine_context` | Two kinds of carried-forward context (`kind` column): `'narrowed'` = the top-3 ideas the round-1 dot vote chose; `'refine'` = genuine refine reasons. |
 | `outcomes` | The decided result for a round → a `perspective` (`unique(jam_id, round)`). |
 | `jam_summaries` | AI room summary (`decisions`, `open_questions`, `differences`). |
 | `jam_transcripts` | Whereby transcript fetched by the webhook. |
@@ -42,7 +42,8 @@ hard. This schema gives every concept a table with real keys and constraints.
 | `reflections[]` | `reflections` |
 | `perspectives[]` | `perspectives` (slot A = index 0, B = index 1) |
 | `votes[]` | `votes` |
-| `refineContext[]` | `refine_context` |
+| `narrowedIdeas[]` | `refine_context` (`kind = 'narrowed'`) |
+| `refineContext[]` | `refine_context` (`kind = 'refine'`) |
 | `outcome` | `outcomes` |
 | `summary` | `jam_summaries` |
 | `room:{roomName}` reverse index | `jams.whereby_room_name` (unique) |

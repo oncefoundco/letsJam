@@ -31,12 +31,22 @@ Rules:
 export async function clusterReflections(
   topic: string,
   reflections: Reflection[],
-  refineContext?: string[]
+  refineContext?: string[],
+  // The top-3 ideas the round-1 dot vote narrowed to — the room's CHOSEN
+  // priorities, not refine feedback, so they get their own framing.
+  narrowedIdeas?: string[]
 ): Promise<Perspective[]> {
   const written = reflections
     .filter((r) => !r.passed && r.text.trim().length > 0)
     .map((r) => `${r.name}: ${r.text}`)
     .join("\n\n");
+
+  const narrowed =
+    narrowedIdeas && narrowedIdeas.length > 0
+      ? `\n\nIn the first round the room dot-voted and narrowed to these priorities:\n${narrowedIdeas.join(
+          "\n"
+        )}\nBoth paths must squarely address them.`
+      : "";
 
   const refine =
     refineContext && refineContext.length > 0
@@ -58,7 +68,7 @@ export async function clusterReflections(
     messages: [
       {
         role: "user",
-        content: `Topic: ${topic}\n\nPrivate reflections:\n${written}${refine}`,
+        content: `Topic: ${topic}\n\nPrivate reflections:\n${written}${narrowed}${refine}`,
       },
     ],
     output_config: { format: zodOutputFormat(ClusterSchema) },

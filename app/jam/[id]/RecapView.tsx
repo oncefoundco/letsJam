@@ -46,6 +46,9 @@ export type RecapData = {
     voters: string[];
     winner: boolean;
   }[];
+  // The top-3 ideas the round-1 dot vote narrowed to (carried into diamond 2).
+  narrowedIdeas: string[];
+  // Genuine refine reasons — only present when a round was sent back.
   refineContext: string[];
 };
 
@@ -63,6 +66,7 @@ export function RecapView({ data }: { data: RecapData }) {
     ];
     if (data.reflections.length) s.push({ id: "brought", label: "What people brought" });
     if (data.options.length) s.push({ id: "options", label: "The options" });
+    if (data.narrowedIdeas.length) s.push({ id: "narrowed", label: "What we narrowed to" });
     if (data.perspectives.length) s.push({ id: "vote", label: "The vote" });
     if (data.refineContext.length) s.push({ id: "refined", label: "Why we refined" });
     return s;
@@ -261,6 +265,24 @@ export function RecapView({ data }: { data: RecapData }) {
                     </span>
                   </li>
                 ) : null}
+              </ul>
+            </Card>
+          </Section>
+        ) : null}
+
+        {data.narrowedIdeas.length ? (
+          <Section id="narrowed">
+            <Card title="What we narrowed to">
+              <ul className="flex flex-col gap-4">
+                {data.narrowedIdeas.map((idea, i) => (
+                  <li
+                    key={i}
+                    className="border-l-2 border-[#1a1a1a]/15 pl-4 text-[15px] leading-[1.5] text-muted-ink"
+                    style={PS}
+                  >
+                    {idea}
+                  </li>
+                ))}
               </ul>
             </Card>
           </Section>

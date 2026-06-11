@@ -45,11 +45,10 @@ export default async function SessionPage({
     "";
   const initialColor =
     typeof meta.color === "string" ? (meta.color as string) : undefined;
-  // The second (solution) call reuses this route; refineContext is only present
-  // in diamond 2, so it tells the stepper which "Discuss" we're on.
-  const isRound2 = Boolean(
-    session.refineContext && session.refineContext.length > 0
-  );
+  // The second (solution) call reuses this route; the round tells the stepper
+  // which "Discuss" we're on. (Keyed off the round, not narrowedIdeas presence,
+  // so the rare round bump that skips narrowing still reads as diamond 2.)
+  const isRound2 = (session.round ?? 1) >= 2;
 
   return (
     <div className="flex min-h-screen flex-col gap-6 bg-background p-6 md:gap-8 md:p-8">
@@ -75,8 +74,8 @@ export default async function SessionPage({
           topic={session.topic}
           description={session.description}
           decisions={
-            session.refineContext && session.refineContext.length > 0
-              ? session.refineContext
+            session.narrowedIdeas && session.narrowedIdeas.length > 0
+              ? session.narrowedIdeas
               : undefined
           }
           files={session.files}

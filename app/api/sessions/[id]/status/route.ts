@@ -26,6 +26,10 @@ export async function GET(
     // anyway"), every reflection client should advance to the vote — this is
     // the shared signal that moves the whole room, not just the host.
     optionsReady: (session.options?.length ?? 0) > 0,
+    // Diamond 2's forced start ("Start vote anyway") builds perspectives, not
+    // options — without this signal, non-submitters polling the reflection page
+    // never learned the vote had started and got stranded.
+    perspectivesReady: (session.perspectives?.length ?? 0) > 0,
     round: currentRound(session),
     startedAt: session.startedAt ?? null,
     timer,

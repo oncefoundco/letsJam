@@ -130,6 +130,7 @@ export default async function JamRecapPage({
     options,
     refineDots: tally[REFINE_OPTION_ID] ?? 0,
     perspectives,
+    narrowedIdeas: session.narrowedIdeas ?? [],
     refineContext: session.refineContext ?? [],
   };
 

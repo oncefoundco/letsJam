@@ -47,8 +47,8 @@ export default async function VotePage({
         round={session.round ?? 1}
         hostId={session.participants[0]?.id}
         decisions={
-          session.refineContext && session.refineContext.length > 0
-            ? session.refineContext
+          session.narrowedIdeas && session.narrowedIdeas.length > 0
+            ? session.narrowedIdeas
             : undefined
         }
       />

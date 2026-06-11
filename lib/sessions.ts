@@ -106,7 +106,12 @@ export type StoredSession = {
   // Voting state. round starts at 1; a refine result bumps it and re-opens reflection.
   round?: number;
   votes?: Vote[];
-  // Refine reasons carried forward to sharpen the next round's synthesis.
+  // The top-3 ideas the round-1 dot vote narrowed to, carried into diamond 2 so
+  // the second reflection + synthesis build on them. Distinct from refineContext:
+  // these are what the room CHOSE, not what it said was missing.
+  narrowedIdeas?: string[];
+  // Genuine refine reasons (a round was sent back) carried forward to sharpen
+  // the next round's synthesis.
   refineContext?: string[];
   outcome?: Outcome;
   // Live phase countdown. Cached in Redis only (not persisted to Postgres);
@@ -597,7 +602,8 @@ export async function ensurePerspectives(
   const perspectives = await clusterReflections(
     session.topic,
     session.reflections ?? [],
-    session.refineContext
+    session.refineContext,
+    session.narrowedIdeas
   );
   if (perspectives.length === 0) return [];
   await setPerspectives(sessionId, perspectives);

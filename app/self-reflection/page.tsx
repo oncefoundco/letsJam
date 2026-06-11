@@ -37,6 +37,7 @@ export default async function SelfReflectionPage({
         files={session.files}
         participants={session.participants}
         refineContext={session.refineContext}
+        narrowedIdeas={session.narrowedIdeas}
         round={session.round ?? 1}
         hostId={session.participants[0]?.id}
       />
@@ -74,6 +75,7 @@ function Body({
   files,
   participants,
   refineContext,
+  narrowedIdeas,
   round,
   hostId,
 }: {
@@ -83,14 +85,17 @@ function Body({
   files: string[];
   participants: Participant[];
   refineContext?: string[];
+  narrowedIdeas?: string[];
   round: number;
   hostId?: string;
 }) {
   // Diamond 1 (round 1) is the 3-priorities reflection; Diamond 2 (round 2+) is
-  // a single-take "propose your solution". A round that's been sent back for
-  // refinement carries the room's concerns (refineContext).
+  // a single-take "propose your solution". Refining = a round was genuinely sent
+  // back, which is the only way past round 2 — keyed off the round, NOT off
+  // refineContext presence: a deadlocked A/B vote refines with zero written
+  // reasons, and the narrowed top-3 ideas ride along separately (narrowedIdeas).
   const single = round >= 2;
-  const refining = !!refineContext && refineContext.length > 0;
+  const refining = round > 2;
   return (
     <div className="flex flex-1 flex-col items-stretch gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-8 lg:px-16 lg:pb-16 lg:pt-8">
       <MainCard
@@ -104,7 +109,9 @@ function Body({
         activeStep={single ? 5 : 2}
         topic={topic}
         description={description}
-        decisions={refining ? refineContext : undefined}
+        decisions={
+          narrowedIdeas && narrowedIdeas.length > 0 ? narrowedIdeas : undefined
+        }
         files={files}
         sessionId={sessionId}
         participants={participants}

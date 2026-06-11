@@ -117,10 +117,13 @@ export function ReflectionForm({
           total: number;
           allSubmitted: boolean;
           optionsReady: boolean;
+          perspectivesReady: boolean;
           submittedIds: string[];
         };
         if (cancelled) return;
-        if (data.allSubmitted || data.optionsReady) {
+        // optionsReady covers diamond 1's forced start; perspectivesReady covers
+        // diamond 2's, whose synthesis builds perspectives instead of options.
+        if (data.allSubmitted || data.optionsReady || data.perspectivesReady) {
           router.push(onwardHref);
           return;
         }
@@ -183,8 +186,9 @@ export function ReflectionForm({
         total: number;
         allSubmitted: boolean;
         optionsReady: boolean;
+        perspectivesReady: boolean;
       } | null;
-      if (data?.allSubmitted || data?.optionsReady) {
+      if (data?.allSubmitted || data?.optionsReady || data?.perspectivesReady) {
         router.push(onwardHref);
         return;
       }

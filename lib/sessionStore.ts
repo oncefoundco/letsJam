@@ -54,7 +54,7 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
       sql`select participant_id, text, passed, submitted_at from reflections where jam_id = ${id} and round = ${round}`,
       sql`select slot, label, title, body, attribution from perspectives where jam_id = ${id} and round = ${round} order by slot asc`,
       sql`select participant_id, choice, reason, round, voted_at from votes where jam_id = ${id} order by voted_at asc`,
-      sql`select reason from refine_context where jam_id = ${id} order by created_at asc`,
+      sql`select reason, kind from refine_context where jam_id = ${id} order by created_at asc`,
       sql`select round, choice, perspective_id from outcomes where jam_id = ${id} and round = ${round}`,
       sql`select id, title, body, attribution, author_id from jam_options where jam_id = ${id} and round = ${round} order by position asc`,
       sql`select participant_id, option_id, dots, round from dot_allocations where jam_id = ${id}`,
@@ -141,7 +141,15 @@ export async function loadSession(id: string): Promise<StoredSession | null> {
     perspectives: perspectiveList.length ? perspectiveList : undefined,
     round,
     votes: voteList,
-    refineContext: refine.map((r) => r.reason as string),
+    // One table, two meanings, told apart by kind: 'narrowed' rows are the
+    // top-3 ideas the round-1 dot vote carried into diamond 2; 'refine' rows
+    // are genuine "sent back to refine" reasons.
+    narrowedIdeas: refine
+      .filter((r) => r.kind === "narrowed")
+      .map((r) => r.reason as string),
+    refineContext: refine
+      .filter((r) => r.kind !== "narrowed")
+      .map((r) => r.reason as string),
     outcome: outcomeVal,
     options: optionList.length ? optionList : undefined,
     dotVotes,
@@ -305,8 +313,11 @@ export async function persistSession(s: StoredSession): Promise<void> {
       await tx`insert into votes (jam_id, participant_id, round, choice, reason, voted_at)
                values (${s.id}, ${v.participantId}, ${v.round}, ${v.choice}, ${v.reason ?? null}, ${new Date(v.votedAt)})`;
     }
+    for (const idea of s.narrowedIdeas ?? []) {
+      await tx`insert into refine_context (jam_id, from_round, reason, kind) values (${s.id}, ${round}, ${idea}, 'narrowed')`;
+    }
     for (const reason of s.refineContext ?? []) {
-      await tx`insert into refine_context (jam_id, from_round, reason) values (${s.id}, ${round}, ${reason})`;
+      await tx`insert into refine_context (jam_id, from_round, reason, kind) values (${s.id}, ${round}, ${reason}, 'refine')`;
     }
     if (s.outcome) {
       await tx`
@@ -605,8 +616,8 @@ export async function narrowToRound2(
     await tx`delete from reflections where jam_id = ${jamId}`;
     await tx`delete from reflection_ideas where jam_id = ${jamId}`;
     for (const reason of ideas) {
-      await tx`insert into refine_context (jam_id, from_round, reason)
-               values (${jamId}, ${fromRound}, ${reason})`;
+      await tx`insert into refine_context (jam_id, from_round, reason, kind)
+               values (${jamId}, ${fromRound}, ${reason}, 'narrowed')`;
     }
   });
   return bumped ? next : null;
