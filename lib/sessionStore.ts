@@ -645,6 +645,18 @@ export async function tryRefineRound(
   return bumped;
 }
 
+// When the room decided, from either voting model. persistSession's
+// delete-reinsert resets decided_at, but the last persist fires at decision
+// time, so this stays an honest stamp of when the jam wrapped.
+export async function loadDecidedAt(jamId: string): Promise<number | undefined> {
+  const [row] = await sql<{ decided_at: Date | null }[]>`
+    select greatest(
+      (select max(decided_at) from outcomes where jam_id = ${jamId}),
+      (select max(decided_at) from jam_decisions where jam_id = ${jamId})
+    ) as decided_at`;
+  return row ? ms(row.decided_at) : undefined;
+}
+
 // ── Previous Jams (host history) ─────────────────────────────────────────────
 
 // One card in the host's "Previous Jams" list on /start.

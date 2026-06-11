@@ -12,6 +12,10 @@ export type RecapData = {
   statusLabel: string;
   decided: boolean;
   rounds: number;
+  // Timeline anchors (epoch ms) — when the host pressed Start and when the
+  // room decided. Either may be absent (never started / not yet decided).
+  startedAtMs?: number;
+  decidedAtMs?: number;
   participants: { name: string; bg: string }[];
   files: string[];
   // What the room landed on — option (dot vote) or perspective (A/B vote).
@@ -25,7 +29,16 @@ export type RecapData = {
     votes?: number;
     votesTotal?: number;
   };
-  reflections: { name: string; bg: string; text: string; passed: boolean }[];
+  reflections: {
+    name: string;
+    bg: string;
+    text: string;
+    passed: boolean;
+    submittedAtMs?: number;
+    // The person's individual takes where they exist; `text` is the joined
+    // fallback for jams that predate per-idea rows.
+    ideas?: { text: string; refine: boolean }[];
+  }[];
   options: {
     id: string;
     title: string;
@@ -33,6 +46,8 @@ export type RecapData = {
     attribution?: string;
     dots: number;
     colors: string[];
+    // Who put dots on this option, by name — the vote-transparency line.
+    voters: { name: string; bg: string; dots: number }[];
     winner: boolean;
   }[];
   refineDots: number;
@@ -43,7 +58,7 @@ export type RecapData = {
     body: string;
     attribution: string;
     votes: number;
-    voters: string[];
+    voters: { name: string; votedAtMs?: number }[];
     winner: boolean;
   }[];
   // The top-3 ideas the round-1 dot vote narrowed to (carried into diamond 2).
@@ -59,20 +74,20 @@ type Stage = { id: string; label: string };
 
 export function RecapView({ data }: { data: RecapData }) {
   // Only the sections this jam actually has show up — in the narrative AND in
-  // the stage tracker, so the two always mirror each other.
+  // the stage tracker, so the two always mirror each other. Ordered the way
+  // the jam actually went: round 1's narrowing first, the decision last.
   const stages = useMemo<Stage[]>(() => {
-    const s: Stage[] = [
-      { id: "decision", label: data.decided ? "The decision" : "Where it stands" },
-    ];
+    const s: Stage[] = [];
+    if (data.narrowedIdeas.length) s.push({ id: "narrowed", label: "What we narrowed to" });
+    if (data.refineContext.length) s.push({ id: "refined", label: "Why we refined" });
     if (data.reflections.length) s.push({ id: "brought", label: "What people brought" });
     if (data.options.length) s.push({ id: "options", label: "The options" });
-    if (data.narrowedIdeas.length) s.push({ id: "narrowed", label: "What we narrowed to" });
     if (data.perspectives.length) s.push({ id: "vote", label: "The vote" });
-    if (data.refineContext.length) s.push({ id: "refined", label: "Why we refined" });
+    s.push({ id: "decision", label: data.decided ? "The decision" : "Where it stands" });
     return s;
   }, [data]);
 
-  const [active, setActive] = useState("decision");
+  const [active, setActive] = useState(stages[0]?.id ?? "decision");
 
   // Scroll-spy: the tracker's highlight follows whichever section sits in the
   // upper band of the viewport. Clicking a stage (or prev/next) scrolls there;
@@ -117,13 +132,23 @@ export function RecapView({ data }: { data: RecapData }) {
           >
             {data.topic}
           </h1>
-          <p className="text-[14px] leading-none text-[#1a1a1a]/50" style={PS}>
+          <p
+            className="text-[14px] leading-[1.6] text-[#1a1a1a]/50"
+            style={PS}
+            suppressHydrationWarning
+          >
             {data.dateLabel}
             {" · "}
             {data.participants.length}{" "}
             {data.participants.length === 1 ? "person" : "people"}
             {" · "}
             {data.rounds} {data.rounds === 1 ? "round" : "rounds"}
+            {data.startedAtMs ? ` · started ${fmtClock(data.startedAtMs)}` : ""}
+            {data.startedAtMs && data.decidedAtMs
+              ? ` → decided ${fmtClock(data.decidedAtMs)} (${fmtDuration(
+                  data.decidedAtMs - data.startedAtMs
+                )})`
+              : ""}
           </p>
           {data.description ? (
             <p
@@ -135,49 +160,41 @@ export function RecapView({ data }: { data: RecapData }) {
           ) : null}
         </div>
 
-        <Section id="decision">
-          {data.result ? (
-            <div className="flex flex-col gap-4 rounded-3xl bg-jam-yellow p-6 md:p-8">
-              <p
-                className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
-                style={PS}
-              >
-                The decision
-              </p>
-              <p
-                className="text-[28px] leading-[1.1] tracking-[-0.5px] text-[#1a1a1a] md:text-[36px]"
-                style={QUEENS}
-              >
-                {data.result.title}
-              </p>
-              {data.result.body ? (
-                <p className="text-[15px] leading-[1.5] text-[#1a1a1a]/80" style={PS}>
-                  {data.result.body}
-                </p>
-              ) : null}
-              <p className="text-[13px] leading-none text-[#1a1a1a]/60" style={PS}>
-                {data.result.dots != null
-                  ? `${data.result.dots} of ${data.result.totalDots} dots`
-                  : `${data.result.votes} of ${data.result.votesTotal} votes`}
-                {data.result.round > 1 ? ` · decided in round ${data.result.round}` : ""}
-                {data.result.attribution ? ` · ${data.result.attribution}` : ""}
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 rounded-3xl bg-white p-6 md:p-8">
-              <p
-                className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
-                style={PS}
-              >
-                Where it stands
-              </p>
-              <p className="text-[18px] italic leading-[1.5] text-[#1a1a1a]" style={PS}>
-                This jam hasn&apos;t reached a decision — it&apos;s{" "}
-                {data.statusLabel.toLowerCase()}.
-              </p>
-            </div>
-          )}
-        </Section>
+        {data.narrowedIdeas.length ? (
+          <Section id="narrowed">
+            <Card title="What we narrowed to">
+              <ul className="flex flex-col gap-4">
+                {data.narrowedIdeas.map((idea, i) => (
+                  <li
+                    key={i}
+                    className="border-l-2 border-[#1a1a1a]/15 pl-4 text-[15px] leading-[1.5] text-muted-ink"
+                    style={PS}
+                  >
+                    {idea}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </Section>
+        ) : null}
+
+        {data.refineContext.length ? (
+          <Section id="refined">
+            <Card title="Why we refined">
+              <ul className="flex flex-col gap-4">
+                {data.refineContext.map((reason, i) => (
+                  <li
+                    key={i}
+                    className="border-l-2 border-[#1a1a1a]/15 pl-4 text-[15px] italic leading-[1.5] text-muted-ink"
+                    style={PS}
+                  >
+                    {reason}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </Section>
+        ) : null}
 
         {data.reflections.length ? (
           <Section id="brought">
@@ -190,13 +207,36 @@ export function RecapView({ data }: { data: RecapData }) {
                       <p
                         className="text-[14px] font-semibold leading-none text-[#1a1a1a]"
                         style={PS}
+                        suppressHydrationWarning
                       >
                         {r.name}
+                        {r.submittedAtMs ? (
+                          <span className="ml-2 font-normal text-[#1a1a1a]/40">
+                            {fmtClock(r.submittedAtMs)}
+                          </span>
+                        ) : null}
                       </p>
                       {r.passed ? (
                         <p className="text-[15px] italic leading-[1.5] text-[#1a1a1a]/40" style={PS}>
                           Passed this round
                         </p>
+                      ) : r.ideas?.length ? (
+                        <ul className="flex flex-col gap-1.5">
+                          {r.ideas.map((idea, j) => (
+                            <li
+                              key={j}
+                              className="text-[15px] leading-[1.5] text-muted-ink"
+                              style={PS}
+                            >
+                              {idea.text}
+                              {idea.refine ? (
+                                <span className="ml-2 rounded-full bg-[#f5f5f5] px-2 py-0.5 text-[11px] italic text-[#1a1a1a]/50">
+                                  wanted another round
+                                </span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
                         <p className="whitespace-pre-line text-[15px] leading-[1.5] text-muted-ink" style={PS}>
                           {r.text}
@@ -252,6 +292,24 @@ export function RecapView({ data }: { data: RecapData }) {
                         {o.attribution ? ` · ${o.attribution}` : ""}
                       </span>
                     </div>
+                    {o.voters.length ? (
+                      <p
+                        className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.4] ${
+                          o.winner ? "text-white/70" : "text-[#1a1a1a]/60"
+                        }`}
+                        style={PS}
+                      >
+                        {o.voters.map((v, i) => (
+                          <span key={i} className="inline-flex items-center gap-1.5">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: v.bg }}
+                            />
+                            {v.name} · {v.dots}
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
                   </li>
                 ))}
                 {data.refineDots > 0 ? (
@@ -265,24 +323,6 @@ export function RecapView({ data }: { data: RecapData }) {
                     </span>
                   </li>
                 ) : null}
-              </ul>
-            </Card>
-          </Section>
-        ) : null}
-
-        {data.narrowedIdeas.length ? (
-          <Section id="narrowed">
-            <Card title="What we narrowed to">
-              <ul className="flex flex-col gap-4">
-                {data.narrowedIdeas.map((idea, i) => (
-                  <li
-                    key={i}
-                    className="border-l-2 border-[#1a1a1a]/15 pl-4 text-[15px] leading-[1.5] text-muted-ink"
-                    style={PS}
-                  >
-                    {idea}
-                  </li>
-                ))}
               </ul>
             </Card>
           </Section>
@@ -326,9 +366,18 @@ export function RecapView({ data }: { data: RecapData }) {
                     <p
                       className={`text-[13px] leading-[1.4] ${p.winner ? "text-white/70" : "text-[#1a1a1a]/50"}`}
                       style={PS}
+                      suppressHydrationWarning
                     >
                       {p.votes} {p.votes === 1 ? "vote" : "votes"}
-                      {p.voters.length ? ` — ${p.voters.join(", ")}` : ""}
+                      {p.voters.length
+                        ? ` — ${p.voters
+                            .map((v) =>
+                              v.votedAtMs
+                                ? `${v.name} (${fmtClock(v.votedAtMs)})`
+                                : v.name
+                            )
+                            .join(", ")}`
+                        : ""}
                     </p>
                   </div>
                 ))}
@@ -337,23 +386,54 @@ export function RecapView({ data }: { data: RecapData }) {
           </Section>
         ) : null}
 
-        {data.refineContext.length ? (
-          <Section id="refined">
-            <Card title="Why we refined">
-              <ul className="flex flex-col gap-4">
-                {data.refineContext.map((reason, i) => (
-                  <li
-                    key={i}
-                    className="border-l-2 border-[#1a1a1a]/15 pl-4 text-[15px] italic leading-[1.5] text-muted-ink"
-                    style={PS}
-                  >
-                    {reason}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </Section>
-        ) : null}
+        <Section id="decision">
+          {data.result ? (
+            <div className="flex flex-col gap-4 rounded-3xl bg-jam-yellow p-6 md:p-8">
+              <p
+                className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
+                style={PS}
+              >
+                The decision
+              </p>
+              <p
+                className="text-[28px] leading-[1.1] tracking-[-0.5px] text-[#1a1a1a] md:text-[36px]"
+                style={QUEENS}
+              >
+                {data.result.title}
+              </p>
+              {data.result.body ? (
+                <p className="text-[15px] leading-[1.5] text-[#1a1a1a]/80" style={PS}>
+                  {data.result.body}
+                </p>
+              ) : null}
+              <p
+                className="text-[13px] leading-none text-[#1a1a1a]/60"
+                style={PS}
+                suppressHydrationWarning
+              >
+                {data.result.dots != null
+                  ? `${data.result.dots} of ${data.result.totalDots} dots`
+                  : `${data.result.votes} of ${data.result.votesTotal} votes`}
+                {data.result.round > 1 ? ` · decided in round ${data.result.round}` : ""}
+                {data.decidedAtMs ? ` · ${fmtClock(data.decidedAtMs)}` : ""}
+                {data.result.attribution ? ` · ${data.result.attribution}` : ""}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-3xl bg-white p-6 md:p-8">
+              <p
+                className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
+                style={PS}
+              >
+                Where it stands
+              </p>
+              <p className="text-[18px] italic leading-[1.5] text-[#1a1a1a]" style={PS}>
+                This jam hasn&apos;t reached a decision — it&apos;s{" "}
+                {data.statusLabel.toLowerCase()}.
+              </p>
+            </div>
+          )}
+        </Section>
       </main>
 
       {/* ── Right: sticky stage tracker + at-a-glance ───────────────────── */}
@@ -424,6 +504,14 @@ export function RecapView({ data }: { data: RecapData }) {
                 value={`${data.rounds} ${data.rounds === 1 ? "round" : "rounds"}`}
               />
               <GlanceRow label="Date" value={data.dateLabel} />
+              {data.startedAtMs && data.decidedAtMs ? (
+                <GlanceRow
+                  label="Duration"
+                  value={`${fmtClock(data.startedAtMs)} – ${fmtClock(
+                    data.decidedAtMs
+                  )} · ${fmtDuration(data.decidedAtMs - data.startedAtMs)}`}
+                />
+              ) : null}
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-[14px] leading-none text-[#1a1a1a]/50" style={PS}>
                   People
@@ -520,13 +608,36 @@ function Dots({ colors, dim }: { colors: string[]; dim?: boolean }) {
   );
 }
 
+// "6:15 PM" in the viewer's locale/timezone. Server-rendered text uses the
+// server's zone, so callers mark the element suppressHydrationWarning and the
+// client paint corrects it.
+function fmtClock(ms: number): string {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(ms));
+}
+
+// "5 min" / "1 h 12 min" / "45 s".
+function fmtDuration(ms: number): string {
+  const totalMinutes = Math.round(ms / 60000);
+  if (totalMinutes < 1) return `${Math.max(1, Math.round(ms / 1000))} s`;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return h > 0 ? `${h} h ${m} min` : `${m} min`;
+}
+
 function GlanceRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <dt className="text-[14px] leading-none text-[#1a1a1a]/50" style={PS}>
         {label}
       </dt>
-      <dd className="text-[14px] font-medium leading-none text-[#1a1a1a]" style={PS}>
+      <dd
+        className="text-[14px] font-medium leading-none text-[#1a1a1a]"
+        style={PS}
+        suppressHydrationWarning
+      >
         {value}
       </dd>
     </div>

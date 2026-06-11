@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Logo } from "@/app/_components/Logo";
 import { createClient } from "@/lib/supabase/server";
-import { loadSession } from "@/lib/sessionStore";
+import {
+  loadDecidedAt,
+  loadReflectionIdeas,
+  loadSession,
+} from "@/lib/sessionStore";
 import { currentRound, dotColorsByOption, tallyDots } from "@/lib/sessions";
 import { REFINE_OPTION_ID } from "@/lib/voting";
 import { RecapView, type RecapData } from "./RecapView";
@@ -39,11 +43,36 @@ export default async function JamRecapPage({
   const round = currentRound(session);
   const decided = Boolean(session.decision || session.outcome);
 
+  // Survivable timestamps for the timeline: when the room decided, and each
+  // person's individual ideas (the 3-takes rows) for the final round.
+  const [ideaRows, decidedAtMs] = await Promise.all([
+    loadReflectionIdeas(id, round),
+    decided ? loadDecidedAt(id) : Promise.resolve(undefined),
+  ]);
+
   // Dot-vote shape: tallies + per-voter colored dots, same helpers the live
   // vote screen uses, so the recap echoes what the room saw.
   const tally = tallyDots(session);
   const colors = dotColorsByOption(session);
   const totalDots = Object.values(tally).reduce((sum, d) => sum + d, 0);
+
+  // Vote transparency: who put how many dots on each option, by name.
+  const participantById = new Map(
+    session.participants.map((p) => [p.id, { name: p.name, bg: p.bg }])
+  );
+  const votersByOption: Record<
+    string,
+    { name: string; bg: string; dots: number }[]
+  > = {};
+  for (const d of session.dotVotes ?? []) {
+    if (d.round !== round || d.dots <= 0) continue;
+    const who = participantById.get(d.participantId);
+    (votersByOption[d.optionId] ??= []).push({
+      name: who?.name ?? "Someone",
+      bg: who?.bg ?? "#cccccc",
+      dots: d.dots,
+    });
+  }
 
   const options = (session.options ?? [])
     .map((o) => ({
@@ -53,6 +82,7 @@ export default async function JamRecapPage({
       attribution: o.attribution || undefined,
       dots: tally[o.id] ?? 0,
       colors: colors[o.id] ?? [],
+      voters: (votersByOption[o.id] ?? []).sort((a, b) => b.dots - a.dots),
       winner: session.decision?.option.id === o.id,
     }))
     .sort((a, b) => b.dots - a.dots);
@@ -71,7 +101,7 @@ export default async function JamRecapPage({
       body: p.body,
       attribution: p.attribution,
       votes: forIt.length,
-      voters: forIt.map((v) => v.name),
+      voters: forIt.map((v) => ({ name: v.name, votedAtMs: v.votedAt })),
       winner: session.outcome?.choice === slot,
     };
   });
@@ -115,16 +145,32 @@ export default async function JamRecapPage({
         : "Waiting",
     decided,
     rounds: round,
+    startedAtMs: session.startedAt,
+    decidedAtMs,
     participants: session.participants.map((p) => ({ name: p.name, bg: p.bg })),
     files: session.files ?? [],
     result,
     reflections: (() => {
+      // Each person's individual ideas where they exist (3-takes rows); the
+      // joined reflection text stays the fallback for pre-ideas jams.
+      const ideasByParticipant = new Map<
+        string,
+        { text: string; refine: boolean }[]
+      >();
+      for (const idea of ideaRows) {
+        if (!idea.text.trim()) continue;
+        const list = ideasByParticipant.get(idea.participantId) ?? [];
+        list.push({ text: idea.text, refine: idea.refine });
+        ideasByParticipant.set(idea.participantId, list);
+      }
       const bgById = new Map(session.participants.map((p) => [p.id, p.bg]));
       return (session.reflections ?? []).map((r) => ({
         name: r.name,
         bg: bgById.get(r.participantId) ?? "#cccccc",
         text: r.text,
         passed: r.passed,
+        submittedAtMs: r.submittedAt,
+        ideas: ideasByParticipant.get(r.participantId),
       }));
     })(),
     options,
