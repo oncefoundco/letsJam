@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
+import { PhaseMockup } from "@/app/_components/PhaseMockup";
 import { Reveal } from "@/app/_components/Reveal";
 
 /*
@@ -21,7 +21,6 @@ type Phase = {
   key: string;
   title: string;
   lead: string;
-  image: string;
   bg: string;
 };
 
@@ -30,28 +29,24 @@ const PHASES: Phase[] = [
     key: "Converse",
     title: "Start by getting it all on the table",
     lead: "Talk the problem through out loud while Jam quietly captures the decisions you're actually making.",
-    image: "/landing/phase-converse.png",
     bg: "#fcfad9",
   },
   {
     key: "Diverge",
     title: "Then reflect on what actually matters",
     lead: "Everyone writes their own take first, so no one just nods along with whoever's loudest.",
-    image: "/landing/phase-diverge.png",
     bg: "#d2efdb",
   },
   {
     key: "Collaborate",
     title: "Shape the options together",
     lead: "Priorities go up at once, Jam groups the overlaps, and you vote on what a good answer has to nail.",
-    image: "/landing/phase-collaborate.png",
     bg: "#dbe9fb",
   },
   {
     key: "Decide",
     title: "Make a call the whole room is behind",
     lead: "Weigh the options against what matters and vote. If a few still feel off, you go again.",
-    image: "/landing/phase-decide.png",
     bg: "#f8dfdd",
   },
 ];
@@ -132,15 +127,8 @@ export function PhaseCarousel() {
                 <h2 className="heading-display max-w-[20ch] text-center text-[clamp(1.75rem,4vw,3rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance]">
                   {p.title}
                 </h2>
-                <div className="relative mt-[clamp(1.5rem,4vh,3rem)] w-full flex-1">
-                  <Image
-                    src={p.image}
-                    alt={`${p.key} — ${p.lead}`}
-                    fill
-                    priority={i === 0}
-                    sizes="100vw"
-                    className="object-contain"
-                  />
+                <div className="mt-[clamp(1.5rem,4vh,3rem)] flex w-full flex-1 items-center justify-center">
+                  <PhaseMockup variant={p.key} />
                 </div>
               </div>
             </div>
