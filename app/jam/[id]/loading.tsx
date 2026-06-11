@@ -11,7 +11,7 @@ export default function Loading() {
     <div className="flex min-h-screen flex-col bg-background">
       <SkeletonHeader />
       <div className="flex flex-1 flex-col gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-11 lg:px-16 lg:pb-16 lg:pt-8">
-        <main className="flex min-w-0 flex-1 animate-pulse flex-col gap-6">
+        <main className="flex min-w-0 flex-1 flex-col gap-6">
           <div className="flex flex-col gap-3">
             <Pulse className="h-11 w-2/3 md:h-12" />
             <Pulse className="h-4 w-40" />
@@ -25,9 +25,9 @@ export default function Loading() {
           <SkeletonCard className="w-full p-8">
             <Pulse className="h-5 w-36" />
             <div className="mt-4 flex gap-2">
-              <span className="h-9 w-9 rounded-full bg-neutral-200" />
-              <span className="h-9 w-9 rounded-full bg-neutral-200" />
-              <span className="h-9 w-9 rounded-full bg-neutral-200" />
+              <span className="h-9 w-9 animate-pulse rounded-full bg-neutral-200" />
+              <span className="h-9 w-9 animate-pulse rounded-full bg-neutral-200" />
+              <span className="h-9 w-9 animate-pulse rounded-full bg-neutral-200" />
             </div>
             <Pulse className="mt-4 h-4 w-full" />
             <Pulse className="mt-2 h-4 w-3/4" />

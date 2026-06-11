@@ -26,9 +26,9 @@ export function SkeletonHeader({
         <Logo />
       </span>
       {controls ? (
-        <div className="flex animate-pulse items-center gap-[4px]">
-          <span className="h-[42px] w-[42px] rounded-full bg-neutral-200" />
-          <span className="h-[42px] w-[120px] rounded-full bg-neutral-200" />
+        <div className="flex items-center gap-[4px]">
+          <span className="h-[42px] w-[42px] animate-pulse rounded-full bg-neutral-200" />
+          <span className="h-[42px] w-[120px] animate-pulse rounded-full bg-neutral-200" />
         </div>
       ) : null}
     </header>
@@ -39,7 +39,7 @@ export function SkeletonHeader({
 // widths) so the right rail doesn't shift when the real sidebar arrives.
 export function SkeletonSidebar() {
   return (
-    <aside className="flex w-full animate-pulse flex-col gap-8 self-stretch rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
+    <aside className="flex w-full flex-col gap-8 self-stretch rounded-3xl bg-white p-6 lg:w-[420px] xl:w-[479px]">
       <div className="flex w-full flex-col gap-6 rounded-2xl bg-[#f4f4f4] p-6">
         <Pulse className="h-4 w-24" />
         <Pulse className="h-7 w-3/4" />
@@ -48,9 +48,9 @@ export function SkeletonSidebar() {
       <div className="flex flex-col gap-3">
         <Pulse className="h-4 w-32" />
         <div className="flex gap-2">
-          <span className="h-9 w-9 rounded-full bg-neutral-200" />
-          <span className="h-9 w-9 rounded-full bg-neutral-200" />
-          <span className="h-9 w-9 rounded-full bg-neutral-200" />
+          <span className="h-9 w-9 animate-pulse rounded-full bg-neutral-200" />
+          <span className="h-9 w-9 animate-pulse rounded-full bg-neutral-200" />
+          <span className="h-9 w-9 animate-pulse rounded-full bg-neutral-200" />
         </div>
       </div>
     </aside>
@@ -66,7 +66,7 @@ export function SkeletonCard({
   children?: ReactNode;
 }) {
   return (
-    <div className={`animate-pulse rounded-[24px] bg-white ${className}`}>
+    <div className={`rounded-[24px] bg-white ${className}`}>
       {children}
     </div>
   );
@@ -74,5 +74,5 @@ export function SkeletonCard({
 
 // A single pulse bar. Size/shape via className (h-*, w-*, rounded-*).
 export function Pulse({ className = "" }: { className?: string }) {
-  return <div className={`rounded-md bg-neutral-200 ${className}`} />;
+  return <div className={`animate-pulse rounded-md bg-neutral-200 ${className}`} />;
 }
