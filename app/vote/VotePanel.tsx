@@ -246,7 +246,7 @@ export function VotePanel({
           {error}
         </p>
       ) : null}
-      <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid flex-1 grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {perspectives.slice(0, 2).map((p, i) => (
           <PerspectiveCard
             key={p.label}

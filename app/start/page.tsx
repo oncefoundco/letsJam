@@ -119,7 +119,7 @@ function PreviousJams({ jams }: { jams: HostJamSummary[] }) {
     <aside className="flex w-full flex-col gap-6 lg:w-auto lg:flex-1 lg:self-stretch">
       <div className="flex w-full items-start justify-between gap-4">
         <h2
-          className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
+          className="text-[32px] leading-none tracking-[-0.96px] text-[#1a1a1a] sm:text-[40px] md:text-[48px]"
           style={{ fontFamily: "var(--font-queens)" }}
         >
           Previous Jams

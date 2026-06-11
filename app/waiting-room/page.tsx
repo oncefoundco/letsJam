@@ -139,7 +139,7 @@ function MainCard({
             Waiting to start
           </p>
           <h1
-            className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
+            className="text-[32px] leading-none tracking-[-0.96px] text-[#1a1a1a] sm:text-[40px] md:text-[48px]"
             style={{ fontFamily: "var(--font-queens)" }}
           >
             <StartTime createdAt={createdAt} />

@@ -69,7 +69,7 @@ function ModalShell({ children }: { children: React.ReactNode }) {
 function ModalTitle({ children }: { children: React.ReactNode }) {
   return (
     <h2
-      className="text-center text-[34px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
+      className="text-center text-[28px] leading-none tracking-[-0.96px] text-[#1a1a1a] sm:text-[34px] md:text-[48px]"
       style={{ fontFamily: "var(--font-queens)" }}
     >
       {children}

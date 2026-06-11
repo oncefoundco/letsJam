@@ -20,7 +20,7 @@ export function LegalDoc({
     <main className="flex flex-1 flex-col items-center px-6 pb-16 pt-4 md:px-12 lg:px-16">
       <article className="w-full max-w-[760px] rounded-[24px] bg-white p-8 md:p-12">
         <h1
-          className="text-[40px] leading-none tracking-[-0.96px] text-[#1a1a1a] md:text-[48px]"
+          className="text-[32px] leading-none tracking-[-0.96px] text-[#1a1a1a] sm:text-[40px] md:text-[48px]"
           style={DISPLAY}
         >
           {title}

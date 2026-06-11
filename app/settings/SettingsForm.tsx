@@ -196,7 +196,7 @@ function Profile({
     <div className="flex flex-col gap-3">
       <SectionLabel>Your Profile</SectionLabel>
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
           <RowLabel>Your name</RowLabel>
           <input
             value={name}
@@ -208,11 +208,11 @@ function Profile({
             style={AUTO_INPUT}
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
           <RowLabel>Your email</RowLabel>
           <Pill>{email || "—"}</Pill>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
           <RowLabel>Sign in method</RowLabel>
           {provider === "google" ? (
             <span className="grid h-[42px] w-[42px] place-items-center" aria-label="Google">
@@ -290,7 +290,7 @@ function Team({
           </p>
         ) : null}
         {team.map((member) => (
-          <div key={member.id} className="flex items-center gap-3">
+          <div key={member.id} className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <RowLabel>{member.name}</RowLabel>
             <Pill>
               {member.email}
@@ -306,7 +306,7 @@ function Team({
           </div>
         ))}
         {adding ? (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <RowLabel>New member</RowLabel>
             <input
               ref={inputRef}

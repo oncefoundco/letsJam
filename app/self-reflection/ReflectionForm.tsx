@@ -249,7 +249,7 @@ export function ReflectionForm({
   return (
     <div className="flex flex-col gap-6">
       {single ? (
-        <div className="flex min-h-[342px] flex-col justify-between rounded-2xl bg-[#f5f5f5] p-4">
+        <div className="flex min-h-[240px] flex-col justify-between rounded-2xl bg-[#f5f5f5] p-4 md:min-h-[342px]">
           <textarea
             value={ideas[0].text}
             onChange={(e) => updateIdea(0, { text: e.target.value })}

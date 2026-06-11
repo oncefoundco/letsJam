@@ -24,7 +24,7 @@ export function ControlButton({
   return (
     <button
       type="button"
-      className={`flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#373737] text-white transition-colors hover:bg-[#454545] ${
+      className={`flex h-[36px] w-[36px] items-center justify-center rounded-full bg-[#373737] text-white transition-colors hover:bg-[#454545] sm:h-[42px] sm:w-[42px] ${
         className ?? ""
       }`}
       {...props}
@@ -46,7 +46,7 @@ export function StatusPill({
 }) {
   return (
     <div
-      className={`flex h-[42px] items-center justify-center rounded-full bg-[#373737] px-[18px] py-[12px] text-[18px] font-medium leading-none tracking-[-0.18px] ${
+      className={`flex h-[36px] items-center justify-center rounded-full bg-[#373737] px-[14px] py-[12px] text-[15px] font-medium leading-none tracking-[-0.18px] sm:h-[42px] sm:px-[18px] sm:text-[18px] ${
         muted ? "text-white/60" : "text-white"
       } ${className ?? ""}`}
       style={{ fontFamily: "var(--font-public-sans)" }}
