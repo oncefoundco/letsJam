@@ -19,6 +19,7 @@ const dmSans = { fontFamily: "var(--font-dm-sans)" } as const;
 
 type Phase = {
   key: string;
+  title: string;
   lead: string;
   image: string;
   bg: string;
@@ -27,26 +28,30 @@ type Phase = {
 const PHASES: Phase[] = [
   {
     key: "Converse",
+    title: "Start by getting it all on the table",
     lead: "Talk the problem through out loud while Jam quietly captures the decisions you're actually making.",
-    image: "/landing/slide-converse.png",
+    image: "/landing/phase-converse.png",
     bg: "#fcfad9",
   },
   {
     key: "Diverge",
+    title: "Then reflect on what actually matters",
     lead: "Everyone writes their own take first, so no one just nods along with whoever's loudest.",
-    image: "/landing/slide-diverge.png",
+    image: "/landing/phase-diverge.png",
     bg: "#d2efdb",
   },
   {
     key: "Collaborate",
+    title: "Shape the options together",
     lead: "Priorities go up at once, Jam groups the overlaps, and you vote on what a good answer has to nail.",
-    image: "/landing/slide-collaborate.png",
+    image: "/landing/phase-collaborate.png",
     bg: "#dbe9fb",
   },
   {
     key: "Decide",
+    title: "Make a call the whole room is behind",
     lead: "Weigh the options against what matters and vote. If a few still feel off, you go again.",
-    image: "/landing/slide-decide.png",
+    image: "/landing/phase-decide.png",
     bg: "#f8dfdd",
   },
 ];
@@ -123,14 +128,21 @@ export function PhaseCarousel() {
                 transition: `opacity 700ms ${EASE}`,
               }}
             >
-              <Image
-                src={p.image}
-                alt={`${p.key} — ${p.lead}`}
-                fill
-                priority={i === 0}
-                sizes="100vw"
-                className="object-contain"
-              />
+              <div className="flex h-full flex-col items-center px-6 pt-[clamp(2rem,7vh,5.5rem)] pb-[clamp(7.5rem,20vh,12rem)]">
+                <h2 className="heading-display max-w-[20ch] text-center text-[clamp(1.75rem,4vw,3rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance]">
+                  {p.title}
+                </h2>
+                <div className="relative mt-[clamp(1.5rem,4vh,3rem)] w-full flex-1">
+                  <Image
+                    src={p.image}
+                    alt={`${p.key} — ${p.lead}`}
+                    fill
+                    priority={i === 0}
+                    sizes="100vw"
+                    className="object-contain"
+                  />
+                </div>
+              </div>
             </div>
           ))}
 
