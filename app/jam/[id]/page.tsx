@@ -81,26 +81,19 @@ export default async function JamRecapPage({
     });
   };
 
-  // One round's option cards with tallies, per-voter colored dots, and the
-  // named who-voted-where breakdown.
+  // One round's option cards with tallies and per-voter colored dots — the
+  // colors alone carry who-voted-where (the People avatars are the legend).
   const toOptions = (
     h?: RoundHistory
   ): { options: RecapData["options"]; refineDots: number; totalDots: number } => {
     const tally: Record<string, number> = {};
     const colors: Record<string, string[]> = {};
-    const voters: Record<string, { name: string; bg: string; dots: number }[]> =
-      {};
     for (const d of h?.dots ?? []) {
       const who = participantById.get(d.participantId);
       tally[d.optionId] = (tally[d.optionId] ?? 0) + d.dots;
       (colors[d.optionId] ??= []).push(
         ...Array(d.dots).fill(who?.bg ?? "#cccccc")
       );
-      (voters[d.optionId] ??= []).push({
-        name: who?.name ?? "Someone",
-        bg: who?.bg ?? "#cccccc",
-        dots: d.dots,
-      });
     }
     const options = (h?.options ?? [])
       .map((o) => ({
@@ -110,7 +103,6 @@ export default async function JamRecapPage({
         attribution: o.attribution || undefined,
         dots: tally[o.id] ?? 0,
         colors: colors[o.id] ?? [],
-        voters: (voters[o.id] ?? []).sort((a, b) => b.dots - a.dots),
         winner: h?.decisionOptionId === o.id,
       }))
       .sort((a, b) => b.dots - a.dots);

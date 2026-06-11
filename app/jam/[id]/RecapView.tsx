@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-
 // Serializable view-model computed by the server page (app/jam/[id]/page.tsx).
 export type RecapData = {
   id: string;
@@ -74,69 +71,16 @@ export type RecapOption = {
   body?: string;
   attribution?: string;
   dots: number;
+  // One entry per dot, in the voter's avatar color — the colors alone say who
+  // voted where (the People row in the sidebar is the legend).
   colors: string[];
-  // Who put dots on this option, by name — the vote-transparency line.
-  voters: { name: string; bg: string; dots: number }[];
   winner: boolean;
 };
 
 const PS = { fontFamily: "var(--font-public-sans)" } as const;
 const QUEENS = { fontFamily: "var(--font-queens)" } as const;
 
-type Stage = { id: string; label: string };
-
 export function RecapView({ data }: { data: RecapData }) {
-  // Only the sections this jam actually has show up — in the narrative AND in
-  // the stage tracker, so the two always mirror each other. Ordered the way
-  // the jam actually went: round 1's narrowing first, the decision last.
-  const stages = useMemo<Stage[]>(() => {
-    const s: Stage[] = [];
-    for (const pr of data.pastRounds) {
-      s.push({ id: `round-${pr.round}`, label: `Round ${pr.round} — the dot vote` });
-    }
-    if (data.narrowedIdeas.length) s.push({ id: "narrowed", label: "What we narrowed to" });
-    if (data.refineContext.length) s.push({ id: "refined", label: "Why we refined" });
-    if (data.reflections.length) s.push({ id: "brought", label: "What people brought" });
-    if (data.options.length) s.push({ id: "options", label: "The options" });
-    if (data.perspectives.length) s.push({ id: "vote", label: "The vote" });
-    s.push({ id: "decision", label: data.decided ? "The decision" : "Where it stands" });
-    return s;
-  }, [data]);
-
-  const [active, setActive] = useState(stages[0]?.id ?? "decision");
-
-  // Scroll-spy: the tracker's highlight follows whichever section sits in the
-  // upper band of the viewport. Clicking a stage (or prev/next) scrolls there;
-  // the observer keeps the highlight honest either way.
-  useEffect(() => {
-    const els = stages
-      .map((s) => document.getElementById(`recap-${s.id}`))
-      .filter((el): el is HTMLElement => el !== null);
-    const visible = new Map<string, boolean>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) visible.set(e.target.id, e.isIntersecting);
-        const first = stages.find((s) => visible.get(`recap-${s.id}`));
-        if (first) setActive(first.id);
-      },
-      { rootMargin: "-15% 0px -55% 0px" }
-    );
-    els.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [stages]);
-
-  function goTo(id: string) {
-    document
-      .getElementById(`recap-${id}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function step(delta: number) {
-    const i = stages.findIndex((s) => s.id === active);
-    const next = stages[i + delta];
-    if (next) goTo(next.id);
-  }
-
   return (
     <div className="flex flex-1 flex-col gap-6 px-6 pb-12 pt-4 md:px-12 lg:flex-row lg:gap-11 lg:px-16 lg:pb-16 lg:pt-8">
       {/* ── Left: the narrative ─────────────────────────────────────────── */}
@@ -181,13 +125,13 @@ export function RecapView({ data }: { data: RecapData }) {
             <Card title={`Round ${pr.round} — the dot vote`}>
               {pr.reflections.length ? (
                 <div className="flex flex-col gap-4">
-                  <SubHeading>What people brought</SubHeading>
+                  <SubHeading>What people thought</SubHeading>
                   <ReflectionList items={pr.reflections} />
                 </div>
               ) : null}
               {pr.options.length ? (
                 <div className="flex flex-col gap-4">
-                  <SubHeading>How the dots fell</SubHeading>
+                  <SubHeading>Dot voting results</SubHeading>
                   <OptionList options={pr.options} refineDots={pr.refineDots} />
                 </div>
               ) : null}
@@ -233,7 +177,7 @@ export function RecapView({ data }: { data: RecapData }) {
 
         {data.reflections.length ? (
           <Section id="brought">
-            <Card title="What people brought">
+            <Card title="What people thought">
               <ReflectionList items={data.reflections} />
             </Card>
           </Section>
@@ -355,60 +299,9 @@ export function RecapView({ data }: { data: RecapData }) {
         </Section>
       </main>
 
-      {/* ── Right: sticky stage tracker + at-a-glance ───────────────────── */}
+      {/* ── Right: sticky at-a-glance ───────────────────────────────────── */}
       <aside className="w-full lg:w-[340px] lg:shrink-0">
         <div className="flex flex-col gap-6 lg:sticky lg:top-8">
-          <div className="flex flex-col gap-5 rounded-3xl bg-white p-6">
-            <p
-              className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
-              style={PS}
-            >
-              The flow
-            </p>
-            <ul className="flex flex-col gap-1">
-              {stages.map((s) => {
-                const isActive = s.id === active;
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => goTo(s.id)}
-                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[14px] leading-none transition-colors ${
-                        isActive
-                          ? "bg-[#f5f5f5] font-semibold text-[#1a1a1a]"
-                          : "text-[#1a1a1a]/50 hover:bg-neutral-50 hover:text-[#1a1a1a]"
-                      }`}
-                      style={PS}
-                    >
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
-                          isActive ? "bg-[#1a1a1a]" : "bg-[#1a1a1a]/20"
-                        }`}
-                      />
-                      {s.label}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="flex items-center gap-3">
-              <StepButton
-                label="Previous section"
-                onClick={() => step(-1)}
-                disabled={active === stages[0]?.id}
-              >
-                ↑
-              </StepButton>
-              <StepButton
-                label="Next section"
-                onClick={() => step(1)}
-                disabled={active === stages[stages.length - 1]?.id}
-              >
-                ↓
-              </StepButton>
-            </div>
-          </div>
-
           <div className="flex flex-col gap-5 rounded-3xl bg-white p-6">
             <p
               className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
@@ -448,13 +341,6 @@ export function RecapView({ data }: { data: RecapData }) {
                 />
               ) : null}
             </dl>
-            <Link
-              href={`/start?topic=${encodeURIComponent(data.topic)}`}
-              className="flex items-center justify-center rounded-2xl bg-[#1a1a1a] py-[18px] text-[14px] font-medium leading-none text-white transition-colors hover:bg-black"
-              style={{ fontFamily: "var(--font-inter)" }}
-            >
-              Run a similar jam
-            </Link>
           </div>
         </div>
       </aside>
@@ -462,8 +348,6 @@ export function RecapView({ data }: { data: RecapData }) {
   );
 }
 
-// Section anchor: scroll-mt clears the viewport band the scroll-spy watches,
-// so a clicked stage lands with its heading comfortably in view.
 function Section({ id, children }: { id: string; children: React.ReactNode }) {
   return (
     <section id={`recap-${id}`} className="scroll-mt-28">
@@ -510,12 +394,12 @@ function ReflectionList({ items }: { items: RecapReflection[] }) {
                 Passed this round
               </p>
             ) : r.ideas?.length ? (
-              <ul className="flex flex-col gap-1.5">
+              <ul className="flex flex-col gap-2">
                 {r.ideas.map((idea, j) => (
                   <li
                     key={j}
-                    className="text-[15px] leading-[1.5] text-muted-ink"
-                    style={PS}
+                    className="border-l-2 pl-3 text-[15px] leading-[1.5] text-muted-ink"
+                    style={{ ...PS, borderColor: r.bg }}
                   >
                     {idea.text}
                     {idea.refine ? (
@@ -527,7 +411,10 @@ function ReflectionList({ items }: { items: RecapReflection[] }) {
                 ))}
               </ul>
             ) : (
-              <p className="whitespace-pre-line text-[15px] leading-[1.5] text-muted-ink" style={PS}>
+              <p
+                className="whitespace-pre-line border-l-2 pl-3 text-[15px] leading-[1.5] text-muted-ink"
+                style={{ ...PS, borderColor: r.bg }}
+              >
                 {r.text}
               </p>
             )}
@@ -587,24 +474,6 @@ function OptionList({
               {o.attribution ? ` · ${o.attribution}` : ""}
             </span>
           </div>
-          {o.voters.length ? (
-            <p
-              className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.4] ${
-                o.winner ? "text-white/70" : "text-[#1a1a1a]/60"
-              }`}
-              style={PS}
-            >
-              {o.voters.map((v, i) => (
-                <span key={i} className="inline-flex items-center gap-1.5">
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: v.bg }}
-                  />
-                  {v.name} · {v.dots}
-                </span>
-              ))}
-            </p>
-          ) : null}
         </li>
       ))}
       {refineDots > 0 ? (
@@ -713,26 +582,3 @@ function GlanceRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StepButton({
-  children,
-  label,
-  onClick,
-  disabled,
-}: {
-  children: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="grid h-[42px] flex-1 place-items-center rounded-2xl bg-[#f5f5f5] text-[16px] text-[#1a1a1a] transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      {children}
-    </button>
-  );
-}
