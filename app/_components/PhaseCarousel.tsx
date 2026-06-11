@@ -109,7 +109,7 @@ export function PhaseCarousel() {
           role="region"
           aria-roledescription="carousel"
           aria-label="The four moves of a Jam"
-          className="relative h-[100svh] min-h-[600px] w-full overflow-hidden"
+          className="relative h-[82svh] min-h-[500px] w-full overflow-hidden lg:h-[100svh] lg:min-h-[600px]"
         >
           {/* Slides: crossfade between the phase screens on their pastel bg. */}
           {PHASES.map((p, i) => (
@@ -124,7 +124,7 @@ export function PhaseCarousel() {
               }}
             >
               <div className="flex h-full flex-col items-center px-6 pt-[clamp(2rem,7vh,5.5rem)] pb-[clamp(7.5rem,20vh,12rem)]">
-                <h2 className="heading-display max-w-[20ch] text-center text-[clamp(1.75rem,4vw,3rem)] leading-[1.05] tracking-[-0.02em] text-black [text-wrap:balance]">
+                <h2 className="heading-display max-w-[16ch] whitespace-normal text-center text-[clamp(1.6rem,7.5vw,2.25rem)] leading-[1.1] tracking-[-0.02em] text-black [text-wrap:balance] lg:max-w-none lg:whitespace-nowrap lg:text-[clamp(1.25rem,5vw,2.875rem)] lg:leading-[1.05]">
                   {p.title}
                 </h2>
                 <div className="mt-[clamp(1.5rem,4vh,3rem)] flex w-full flex-1 items-center justify-center">
