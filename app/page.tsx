@@ -78,8 +78,8 @@ function Hero() {
         </span>
       </div>
 
-      {/* Content. Mobile: top-left (upper area). Desktop: bottom-left. */}
-      <div className="absolute left-[clamp(1.25rem,5vw,99px)] right-[clamp(1.25rem,5vw,99px)] top-[clamp(5rem,16vh,8rem)] z-[2] flex max-w-[min(727px,90vw)] flex-col gap-[clamp(1.25rem,3vh,2.5rem)] md:right-auto md:top-auto md:bottom-[clamp(2.5rem,12vh,170px)]">
+      {/* Content. Mobile: top, centered. Desktop: bottom-left. */}
+      <div className="absolute left-[clamp(1.25rem,5vw,99px)] right-[clamp(1.25rem,5vw,99px)] top-[clamp(5rem,16vh,8rem)] z-[2] mx-auto flex max-w-[min(727px,90vw)] flex-col items-center gap-[clamp(1.25rem,3vh,2.5rem)] text-center md:right-auto md:top-auto md:bottom-[clamp(2.5rem,12vh,170px)] md:mx-0 md:items-start md:text-left">
         <h1
           className="lj-lift heading-display text-[clamp(2.25rem,6vw,4.5rem)] leading-[0.98] tracking-[-0.03em] text-white [text-wrap:balance]"
           style={{ ["--lj-delay" as string]: "90ms" }}
