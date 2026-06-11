@@ -44,7 +44,7 @@ export function StartForm() {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, description, files }),
+        body: JSON.stringify({ topic, description, files, emails }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };

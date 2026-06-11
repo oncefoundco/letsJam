@@ -1,17 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import {
   createSession,
   createWherebyRoom,
   makeHostParticipant,
 } from "@/lib/sessions";
+import { insertInvitees } from "@/lib/sessionStore";
+import { sendJamInvites } from "@/lib/email";
 import { createClient } from "@/lib/supabase/server";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Cap to keep a single batch sane; well above any real "Who will be joining?" list.
+const MAX_INVITES = 50;
 
 // Fallback name when there's no signed-in user (e.g. local testing before auth
 // is configured). Normally the host's name comes from their Google profile.
 const HOST_NAME = "Simon";
 
 export async function POST(req: Request) {
-  let body: { topic?: unknown; description?: unknown; files?: unknown };
+  let body: {
+    topic?: unknown;
+    description?: unknown;
+    files?: unknown;
+    emails?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -33,6 +44,19 @@ export async function POST(req: Request) {
 
   const files = Array.isArray(body.files)
     ? body.files.filter((f): f is string => typeof f === "string")
+    : [];
+
+  // The "Who will be joining?" emails. Validate, de-dupe (case-insensitive),
+  // and cap so a bad list can't fan out a huge batch.
+  const emails = Array.isArray(body.emails)
+    ? [
+        ...new Set(
+          body.emails
+            .filter((e): e is string => typeof e === "string")
+            .map((e) => e.trim().toLowerCase())
+            .filter((e) => EMAIL_RE.test(e))
+        ),
+      ].slice(0, MAX_INVITES)
     : [];
 
   try {
@@ -71,6 +95,33 @@ export async function POST(req: Request) {
       participants: [host],
       reflections: [],
     });
+
+    // Persist invitees and email each a "Join Jam" link. Deferred via after()
+    // so the host's redirect isn't blocked, and wrapped so a Resend failure
+    // (e.g. the sending domain not yet verified) never fails jam creation — the
+    // invite modal's copy-link stays as the fallback.
+    if (emails.length > 0) {
+      const origin =
+        req.headers.get("origin") ??
+        process.env.NEXT_PUBLIC_APP_URL ??
+        new URL(req.url).origin;
+      const joinUrl = `${origin}/waiting-room?session=${id}`;
+      after(async () => {
+        try {
+          await insertInvitees(id, emails);
+        } catch (err) {
+          console.error(`Failed to persist invitees for ${id}:`, err);
+        }
+        try {
+          await sendJamInvites(
+            emails.map((to) => ({ to, hostName, topic, joinUrl }))
+          );
+        } catch (err) {
+          console.error(`Failed to send Jam invites for ${id}:`, err);
+        }
+      });
+    }
+
     return NextResponse.json({ id, host });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

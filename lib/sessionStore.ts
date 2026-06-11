@@ -418,6 +418,20 @@ export async function loadReflectionIdeas(
   }));
 }
 
+// Persist the "Who will be joining?" emails for a jam. Single multi-row insert;
+// the unique (jam_id, email) constraint makes re-invites a no-op rather than a
+// duplicate. Runs as the postgres role, so it bypasses RLS like every other
+// server write here.
+export async function insertInvitees(
+  jamId: string,
+  emails: string[]
+): Promise<void> {
+  if (emails.length === 0) return;
+  const rows = emails.map((email) => ({ jam_id: jamId, email }));
+  await sql`insert into jam_invitees ${sql(rows, "jam_id", "email")}
+            on conflict (jam_id, email) do nothing`;
+}
+
 // Atomically add one participant — a single INSERT, so concurrent joins can't
 // clobber each other the way a read-whole-session / rewrite-whole-session does.
 // Caller invalidates the Redis cache afterward so the next read reloads the
