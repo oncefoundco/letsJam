@@ -22,7 +22,6 @@ export default function Home() {
       <BrandShapes />
 
       <div className="relative z-10 mx-auto max-w-[1920px]">
-        <Header />
         <Hero />
         <PhaseCarousel />
         <Promise />
@@ -51,62 +50,60 @@ export default function Home() {
   );
 }
 
-function Header() {
-  return (
-    <header className="flex w-full items-center justify-center px-8 py-6">
-      {/* data-logo-target: LogoIntro flies the splash logo onto this exact box,
-          then reveals it. Held invisible (laid out) while the splash plays. */}
-      <span data-logo-target className="inline-flex">
-        <Logo />
-      </span>
-    </header>
-  );
-}
-
-function BeginButton() {
-  return (
-    <Link
-      href="/start"
-      className="inline-flex items-center justify-center rounded-full bg-black px-6 py-3 text-[18px] font-normal text-white transition duration-200 ease-out will-change-transform hover:scale-[1.03] hover:bg-neutral-800 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3c5bcb]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] motion-reduce:transition-colors motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
-      style={{ fontFamily: "var(--font-inter)" }}
-    >
-      Host Better Meetings
-    </Link>
-  );
-}
-
 function Hero() {
+  // Full-screen hero (Figma redesign): a single photo with the logo top-left and
+  // the headline / subcopy / CTA bottom-left over a dark corner gradient.
   return (
-    <section className="flex min-h-[calc(100svh-75px)] flex-col items-center justify-center gap-[clamp(1.5rem,4vh,2.75rem)] px-6 pb-10 pt-4 md:px-8">
-      <div className="relative aspect-[638/517] w-full max-w-[560px] overflow-hidden rounded-[31px] lg:h-[clamp(230px,36vh,360px)] lg:w-auto lg:max-w-none">
-        <Image
-          src="/landing/hero.png"
-          alt="A team running a focused session on letsJam"
-          fill
-          sizes="(min-width: 768px) 360px, 90vw"
-          className="lj-zoom object-cover"
-          priority
-        />
+    <section className="relative h-[100svh] min-h-[600px] w-full overflow-hidden">
+      <Image
+        src="/landing/hero-figma.jpg"
+        alt="A teammate running a focused session on letsJam"
+        fill
+        priority
+        sizes="100vw"
+        className="lj-zoom object-cover object-center"
+      />
+
+      {/* Legibility: darken the bottom-left (copy) and a touch of the top-left
+          (logo), fading to clear toward the top-right. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[radial-gradient(125%_120%_at_0%_100%,rgba(0,0,0,0.80)_0%,rgba(0,0,0,0.38)_34%,rgba(0,0,0,0)_64%)]"
+      />
+
+      {/* Logo, top-left. data-logo-target: LogoIntro flies the splash logo onto
+          this exact box, then reveals it. */}
+      <div className="absolute left-[clamp(1.25rem,5vw,99px)] top-[clamp(1.25rem,4.5vh,78px)] z-[2]">
+        <span data-logo-target className="inline-flex">
+          <Logo />
+        </span>
       </div>
 
-      <div className="flex flex-col items-center gap-[clamp(1rem,2.4vh,2rem)]">
+      {/* Content, bottom-left. */}
+      <div className="absolute bottom-[clamp(2.5rem,12vh,170px)] left-[clamp(1.25rem,5vw,99px)] z-[2] flex max-w-[min(727px,88vw)] flex-col gap-[clamp(1.25rem,3vh,2.5rem)]">
         <h1
-          className="lj-lift heading-display max-w-[871px] text-center text-[32px] leading-[0.8] text-black [text-wrap:balance] sm:text-[52px] md:text-[64px] lg:text-[72px]"
+          className="lj-lift heading-display text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.95] tracking-[-0.03em] text-white [text-wrap:balance]"
           style={{ ["--lj-delay" as string]: "90ms" }}
         >
           The fastest way to get your team{" "}
           <em className="heading-display-italic">genuinely aligned.</em>
         </h1>
         <p
-          className="lj-lift max-w-[601px] text-center text-[15px] leading-[1.3] tracking-[-0.18px] text-[color:var(--color-muted-ink)] sm:text-[18px] sm:leading-[1.25]"
-          style={{ ...dmSans, ["--lj-delay" as string]: "180ms" }}
+          className="lj-lift text-[clamp(0.95rem,1.4vw,1.375rem)] leading-[1.4] tracking-[-0.01em] text-white/60"
+          style={{ ...publicSans, ["--lj-delay" as string]: "180ms" }}
         >
           Jam is not for every meeting. But definitely for the ones that matter.
           Jam takes your team from &ldquo;what are we actually solving?&rdquo; to
           a decision everyone gets behind, in one focused session.
         </p>
         <div className="lj-lift" style={{ ["--lj-delay" as string]: "260ms" }}>
-          <BeginButton />
+          <Link
+            href="/start"
+            className="inline-flex items-center justify-center rounded-full bg-black px-7 py-4 text-[18px] font-normal leading-none text-white transition duration-200 ease-out will-change-transform hover:scale-[1.03] hover:bg-neutral-900 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3c5bcb]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black motion-reduce:transition-colors motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+            style={{ fontFamily: "var(--font-inter)" }}
+          >
+            Host Your First Jam
+          </Link>
         </div>
       </div>
     </section>
