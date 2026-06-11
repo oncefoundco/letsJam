@@ -249,59 +249,12 @@ export function RecapView({ data }: { data: RecapData }) {
           </Section>
         ) : null}
 
-        <Section id="decision">
-          {data.result ? (
-            <div className="flex flex-col gap-4 rounded-3xl bg-jam-yellow p-6 md:p-8">
-              <p
-                className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
-                style={PS}
-              >
-                The decision
-              </p>
-              <p
-                className="text-[28px] leading-[1.1] tracking-[-0.5px] text-[#1a1a1a] md:text-[36px]"
-                style={QUEENS}
-              >
-                {data.result.title}
-              </p>
-              {data.result.body ? (
-                <p className="text-[15px] leading-[1.5] text-[#1a1a1a]/80" style={PS}>
-                  {data.result.body}
-                </p>
-              ) : null}
-              <p
-                className="text-[13px] leading-none text-[#1a1a1a]/60"
-                style={PS}
-                suppressHydrationWarning
-              >
-                {data.result.dots != null
-                  ? `${data.result.dots} of ${data.result.totalDots} dots`
-                  : `${data.result.votes} of ${data.result.votesTotal} votes`}
-                {data.result.round > 1 ? ` · decided in round ${data.result.round}` : ""}
-                {data.decidedAtMs ? ` · ${fmtClock(data.decidedAtMs)}` : ""}
-                {data.result.attribution ? ` · ${data.result.attribution}` : ""}
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 rounded-3xl bg-white p-6 md:p-8">
-              <p
-                className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
-                style={PS}
-              >
-                Where it stands
-              </p>
-              <p className="text-[18px] italic leading-[1.5] text-[#1a1a1a]" style={PS}>
-                This jam hasn&apos;t reached a decision — it&apos;s{" "}
-                {data.statusLabel.toLowerCase()}.
-              </p>
-            </div>
-          )}
-        </Section>
       </main>
 
       {/* ── Right: sticky at-a-glance ───────────────────────────────────── */}
       <aside className="w-full lg:w-[340px] lg:shrink-0">
         <div className="flex flex-col gap-6 lg:sticky lg:top-8">
+          <DecisionNote data={data} />
           <div className="flex flex-col gap-5 rounded-3xl bg-white p-6">
             <p
               className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
@@ -345,6 +298,61 @@ export function RecapView({ data }: { data: RecapData }) {
         </div>
       </aside>
     </div>
+  );
+}
+
+// The outcome, pinned above "At a glance" as a sticky note — slight tilt,
+// soft shadow, sharp corners so it reads as paper rather than another card.
+function DecisionNote({ data }: { data: RecapData }) {
+  return (
+    <section id="recap-decision" className="scroll-mt-28">
+      {data.result ? (
+        <div className="flex -rotate-1 flex-col gap-3 rounded-sm bg-jam-yellow p-6 shadow-[0_8px_24px_rgba(26,26,26,0.18)] transition-transform duration-200 hover:rotate-0">
+          <p
+            className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
+            style={PS}
+          >
+            The decision
+          </p>
+          <p
+            className="text-[26px] leading-[1.1] tracking-[-0.5px] text-[#1a1a1a]"
+            style={QUEENS}
+          >
+            {data.result.title}
+          </p>
+          {data.result.body ? (
+            <p className="text-[14px] leading-[1.5] text-[#1a1a1a]/80" style={PS}>
+              {data.result.body}
+            </p>
+          ) : null}
+          <p
+            className="text-[12px] leading-[1.4] text-[#1a1a1a]/60"
+            style={PS}
+            suppressHydrationWarning
+          >
+            {data.result.dots != null
+              ? `${data.result.dots} of ${data.result.totalDots} dots`
+              : `${data.result.votes} of ${data.result.votesTotal} votes`}
+            {data.result.round > 1 ? ` · decided in round ${data.result.round}` : ""}
+            {data.decidedAtMs ? ` · ${fmtClock(data.decidedAtMs)}` : ""}
+            {data.result.attribution ? ` · ${data.result.attribution}` : ""}
+          </p>
+        </div>
+      ) : (
+        <div className="flex -rotate-1 flex-col gap-2 rounded-sm bg-white p-6 shadow-[0_8px_24px_rgba(26,26,26,0.12)]">
+          <p
+            className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
+            style={PS}
+          >
+            Where it stands
+          </p>
+          <p className="text-[16px] italic leading-[1.5] text-[#1a1a1a]" style={PS}>
+            This jam hasn&apos;t reached a decision — it&apos;s{" "}
+            {data.statusLabel.toLowerCase()}.
+          </p>
+        </div>
+      )}
+    </section>
   );
 }
 
