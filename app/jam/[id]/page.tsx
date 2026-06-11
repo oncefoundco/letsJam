@@ -4,10 +4,11 @@ import { Logo } from "@/app/_components/Logo";
 import { createClient } from "@/lib/supabase/server";
 import {
   loadDecidedAt,
-  loadReflectionIdeas,
+  loadJamHistory,
   loadSession,
+  type RoundHistory,
 } from "@/lib/sessionStore";
-import { currentRound, dotColorsByOption, tallyDots } from "@/lib/sessions";
+import { currentRound } from "@/lib/sessions";
 import { REFINE_OPTION_ID } from "@/lib/voting";
 import { RecapView, type RecapData } from "./RecapView";
 
@@ -43,49 +44,99 @@ export default async function JamRecapPage({
   const round = currentRound(session);
   const decided = Boolean(session.decision || session.outcome);
 
-  // Survivable timestamps for the timeline: when the room decided, and each
-  // person's individual ideas (the 3-takes rows) for the final round.
-  const [ideaRows, decidedAtMs] = await Promise.all([
-    loadReflectionIdeas(id, round),
+  // The round-by-round history (every round's ideas/options/dots now survive
+  // round advances) and when the room decided.
+  const [history, decidedAtMs] = await Promise.all([
+    loadJamHistory(id),
     decided ? loadDecidedAt(id) : Promise.resolve(undefined),
   ]);
 
-  // Dot-vote shape: tallies + per-voter colored dots, same helpers the live
-  // vote screen uses, so the recap echoes what the room saw.
-  const tally = tallyDots(session);
-  const colors = dotColorsByOption(session);
-  const totalDots = Object.values(tally).reduce((sum, d) => sum + d, 0);
-
-  // Vote transparency: who put how many dots on each option, by name.
   const participantById = new Map(
     session.participants.map((p) => [p.id, { name: p.name, bg: p.bg }])
   );
-  const votersByOption: Record<
-    string,
-    { name: string; bg: string; dots: number }[]
-  > = {};
-  for (const d of session.dotVotes ?? []) {
-    if (d.round !== round || d.dots <= 0) continue;
-    const who = participantById.get(d.participantId);
-    (votersByOption[d.optionId] ??= []).push({
-      name: who?.name ?? "Someone",
-      bg: who?.bg ?? "#cccccc",
-      dots: d.dots,
-    });
-  }
 
-  const options = (session.options ?? [])
-    .map((o) => ({
-      id: o.id,
-      title: o.title,
-      body: o.body || undefined,
-      attribution: o.attribution || undefined,
-      dots: tally[o.id] ?? 0,
-      colors: colors[o.id] ?? [],
-      voters: (votersByOption[o.id] ?? []).sort((a, b) => b.dots - a.dots),
-      winner: session.decision?.option.id === o.id,
-    }))
-    .sort((a, b) => b.dots - a.dots);
+  // One round's reflections, with each person's individual ideas where they
+  // exist (3-takes rows); the joined reflection text stays the fallback.
+  const toReflections = (h?: RoundHistory): RecapData["reflections"] => {
+    if (!h) return [];
+    const ideasByParticipant = new Map<
+      string,
+      { text: string; refine: boolean }[]
+    >();
+    for (const idea of h.ideas) {
+      const list = ideasByParticipant.get(idea.participantId) ?? [];
+      list.push({ text: idea.text, refine: idea.refine });
+      ideasByParticipant.set(idea.participantId, list);
+    }
+    return h.reflections.map((r) => {
+      const who = participantById.get(r.participantId);
+      return {
+        name: who?.name ?? "Someone",
+        bg: who?.bg ?? "#cccccc",
+        text: r.text,
+        passed: r.passed,
+        submittedAtMs: r.submittedAtMs,
+        ideas: ideasByParticipant.get(r.participantId),
+      };
+    });
+  };
+
+  // One round's option cards with tallies, per-voter colored dots, and the
+  // named who-voted-where breakdown.
+  const toOptions = (
+    h?: RoundHistory
+  ): { options: RecapData["options"]; refineDots: number; totalDots: number } => {
+    const tally: Record<string, number> = {};
+    const colors: Record<string, string[]> = {};
+    const voters: Record<string, { name: string; bg: string; dots: number }[]> =
+      {};
+    for (const d of h?.dots ?? []) {
+      const who = participantById.get(d.participantId);
+      tally[d.optionId] = (tally[d.optionId] ?? 0) + d.dots;
+      (colors[d.optionId] ??= []).push(
+        ...Array(d.dots).fill(who?.bg ?? "#cccccc")
+      );
+      (voters[d.optionId] ??= []).push({
+        name: who?.name ?? "Someone",
+        bg: who?.bg ?? "#cccccc",
+        dots: d.dots,
+      });
+    }
+    const options = (h?.options ?? [])
+      .map((o) => ({
+        id: o.id,
+        title: o.title,
+        body: o.body || undefined,
+        attribution: o.attribution || undefined,
+        dots: tally[o.id] ?? 0,
+        colors: colors[o.id] ?? [],
+        voters: (voters[o.id] ?? []).sort((a, b) => b.dots - a.dots),
+        winner: h?.decisionOptionId === o.id,
+      }))
+      .sort((a, b) => b.dots - a.dots);
+    return {
+      options,
+      refineDots: tally[REFINE_OPTION_ID] ?? 0,
+      totalDots: Object.values(tally).reduce((sum, d) => sum + d, 0),
+    };
+  };
+
+  const currentH = history.find((h) => h.round === round);
+  const { options, refineDots, totalDots } = toOptions(currentH);
+
+  // Earlier rounds become their own timeline blocks, oldest first.
+  const pastRounds: RecapData["pastRounds"] = history
+    .filter((h) => h.round < round)
+    .map((h) => {
+      const o = toOptions(h);
+      return {
+        round: h.round,
+        reflections: toReflections(h),
+        options: o.options,
+        refineDots: o.refineDots,
+      };
+    })
+    .filter((pr) => pr.reflections.length || pr.options.length);
 
   // A/B shape: this round's votes per perspective, with voter names.
   const votes = (session.votes ?? []).filter(
@@ -114,7 +165,7 @@ export default async function JamRecapPage({
       body: o.body || undefined,
       attribution: o.attribution || undefined,
       round: session.decision.round,
-      dots: tally[o.id] ?? 0,
+      dots: options.find((x) => x.id === o.id)?.dots ?? 0,
       totalDots,
     };
   } else if (session.outcome?.perspective) {
@@ -150,31 +201,10 @@ export default async function JamRecapPage({
     participants: session.participants.map((p) => ({ name: p.name, bg: p.bg })),
     files: session.files ?? [],
     result,
-    reflections: (() => {
-      // Each person's individual ideas where they exist (3-takes rows); the
-      // joined reflection text stays the fallback for pre-ideas jams.
-      const ideasByParticipant = new Map<
-        string,
-        { text: string; refine: boolean }[]
-      >();
-      for (const idea of ideaRows) {
-        if (!idea.text.trim()) continue;
-        const list = ideasByParticipant.get(idea.participantId) ?? [];
-        list.push({ text: idea.text, refine: idea.refine });
-        ideasByParticipant.set(idea.participantId, list);
-      }
-      const bgById = new Map(session.participants.map((p) => [p.id, p.bg]));
-      return (session.reflections ?? []).map((r) => ({
-        name: r.name,
-        bg: bgById.get(r.participantId) ?? "#cccccc",
-        text: r.text,
-        passed: r.passed,
-        submittedAtMs: r.submittedAt,
-        ideas: ideasByParticipant.get(r.participantId),
-      }));
-    })(),
+    reflections: toReflections(currentH),
     options,
-    refineDots: tally[REFINE_OPTION_ID] ?? 0,
+    refineDots,
+    pastRounds,
     perspectives,
     narrowedIdeas: session.narrowedIdeas ?? [],
     refineContext: session.refineContext ?? [],

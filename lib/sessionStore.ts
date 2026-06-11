@@ -282,21 +282,37 @@ export async function persistSession(s: StoredSession): Promise<void> {
         started_at = excluded.started_at,
         current_round = excluded.current_round`;
 
-    // Replace all child rows for a clean, simple write (data per jam is small).
-    await tx`delete from jam_decisions where jam_id = ${s.id}`;
+    // Replace-then-reinsert, scoped to what the blob actually carries. The blob
+    // holds only the CURRENT round's reflections/perspectives/options/outcome/
+    // decision (loadSession filters by round), so those deletes are round-scoped
+    // — a blanket delete would wipe the prior rounds' history that the recap
+    // shows (and that the round-advance functions now deliberately keep). votes
+    // and dot_allocations carry ALL rounds in the blob, so they stay full
+    // replaces and round-trip history intact.
+    await tx`delete from jam_decisions where jam_id = ${s.id} and round = ${round}`;
     await tx`delete from dot_allocations where jam_id = ${s.id}`;
-    await tx`delete from jam_options where jam_id = ${s.id}`;
-    await tx`delete from outcomes where jam_id = ${s.id}`;
+    await tx`delete from jam_options where jam_id = ${s.id} and round = ${round}`;
+    await tx`delete from outcomes where jam_id = ${s.id} and round = ${round}`;
     await tx`delete from votes where jam_id = ${s.id}`;
-    await tx`delete from reflections where jam_id = ${s.id}`;
+    await tx`delete from reflections where jam_id = ${s.id} and round = ${round}`;
     await tx`delete from refine_context where jam_id = ${s.id}`;
     await tx`delete from jam_files where jam_id = ${s.id}`;
-    await tx`delete from perspectives where jam_id = ${s.id}`;
-    await tx`delete from jam_participants where jam_id = ${s.id}`;
+    await tx`delete from perspectives where jam_id = ${s.id} and round = ${round}`;
 
+    // Participants are upserted, never deleted: reflections, reflection_ideas,
+    // votes, and dot_allocations all cascade on participant_id, so the old
+    // delete-and-reinsert nuked every cascading row — including the per-idea
+    // rows nothing reinserts (the reason recaps kept losing their ideas) and
+    // now the prior rounds' history too. Nobody ever leaves a jam's roster, so
+    // an upsert covers every real change (e.g. none today).
     for (const [i, p] of s.participants.entries()) {
       await tx`insert into jam_participants (id, jam_id, name, color, is_host, joined_at)
-               values (${p.id}, ${s.id}, ${p.name}, ${p.bg}, ${i === 0}, ${new Date(p.joinedAt)})`;
+               values (${p.id}, ${s.id}, ${p.name}, ${p.bg}, ${i === 0}, ${new Date(p.joinedAt)})
+               on conflict (id) do update set
+                 name = excluded.name,
+                 color = excluded.color,
+                 is_host = excluded.is_host,
+                 joined_at = excluded.joined_at`;
     }
     for (const name of s.files ?? []) {
       await tx`insert into jam_files (jam_id, name) values (${s.id}, ${name})`;
@@ -580,25 +596,20 @@ export async function setDecision(
             on conflict (jam_id, round) do update set option_id = excluded.option_id`;
 }
 
-// Refine: advance the round and clear this round's dots, the options, and the
-// reflections — all atomically so a concurrent read can't see a half-reset jam.
+// Refine: advance the round. The finished round's dots, options, and
+// reflections STAY — every live read is round-scoped, so the new round starts
+// blank without deleting anything, and the rows become the recap's history.
 export async function refineRound(jamId: string, fromRound: number): Promise<number> {
   const next = fromRound + 1;
-  await sql.begin(async (tx) => {
-    await tx`update jams set current_round = ${next}, status = 'active' where id = ${jamId}`;
-    await tx`delete from dot_allocations where jam_id = ${jamId} and round = ${fromRound}`;
-    await tx`delete from jam_options where jam_id = ${jamId}`;
-    await tx`delete from reflections where jam_id = ${jamId}`;
-    await tx`delete from reflection_ideas where jam_id = ${jamId}`;
-  });
+  await sql`update jams set current_round = ${next}, status = 'active' where id = ${jamId}`;
   return next;
 }
 
 // Diamond 1 → diamond 2: the round-1 dot vote narrows to the top-3 ideas. Bump
-// the round (concurrency-guarded), clear the round's working state, and carry the
-// 3 ideas forward as refine_context so the second round's reflection + synthesis
-// build on them. Returns the new round, or null if another client already
-// advanced. Mirrors refineRound's resets.
+// the round (concurrency-guarded) and carry the 3 ideas forward as
+// refine_context so the second round's reflection + synthesis build on them.
+// Returns the new round, or null if another client already advanced. The
+// narrowed round's dots/options/reflections stay as history (see refineRound).
 export async function narrowToRound2(
   jamId: string,
   fromRound: number,
@@ -611,10 +622,6 @@ export async function narrowToRound2(
                          where id = ${jamId} and current_round = ${fromRound}`;
     if (res.count === 0) return; // another client already narrowed
     bumped = true;
-    await tx`delete from dot_allocations where jam_id = ${jamId} and round = ${fromRound}`;
-    await tx`delete from jam_options where jam_id = ${jamId}`;
-    await tx`delete from reflections where jam_id = ${jamId}`;
-    await tx`delete from reflection_ideas where jam_id = ${jamId}`;
     for (const reason of ideas) {
       await tx`insert into refine_context (jam_id, from_round, reason, kind)
                values (${jamId}, ${fromRound}, ${reason}, 'narrowed')`;
@@ -626,23 +633,107 @@ export async function narrowToRound2(
 // Concurrency-safe refine used by the reflection-phase trigger: many clients may
 // hit the reflection->vote transition at once, so the round bump is conditional
 // on the round not already having moved (only one caller wins). Returns true if
-// THIS call advanced the round. Mirrors refineRound's resets.
+// THIS call advanced the round. History stays, as in refineRound.
 export async function tryRefineRound(
   jamId: string,
   fromRound: number
 ): Promise<boolean> {
-  let bumped = false;
-  await sql.begin(async (tx) => {
-    const res = await tx`update jams set current_round = ${fromRound + 1}, status = 'active'
-                         where id = ${jamId} and current_round = ${fromRound}`;
-    if (res.count === 0) return; // someone else already advanced this round
-    bumped = true;
-    await tx`delete from dot_allocations where jam_id = ${jamId} and round = ${fromRound}`;
-    await tx`delete from jam_options where jam_id = ${jamId}`;
-    await tx`delete from reflections where jam_id = ${jamId}`;
-    await tx`delete from reflection_ideas where jam_id = ${jamId}`;
-  });
-  return bumped;
+  const res = await sql`update jams set current_round = ${fromRound + 1}, status = 'active'
+                        where id = ${jamId} and current_round = ${fromRound}`;
+  return res.count > 0;
+}
+
+// ── Recap history ─────────────────────────────────────────────────────────────
+
+// Everything a finished round left behind, for the recap's round-by-round
+// timeline. Recap-only: the live flow keeps reading current-round slices via
+// loadSession/loadVoteStatus.
+export type RoundHistory = {
+  round: number;
+  ideas: {
+    participantId: string;
+    text: string;
+    refine: boolean;
+    submittedAtMs: number;
+  }[];
+  reflections: {
+    participantId: string;
+    text: string;
+    passed: boolean;
+    submittedAtMs: number;
+  }[];
+  options: {
+    id: string;
+    title: string;
+    body: string;
+    attribution: string;
+    authorId?: string;
+  }[];
+  dots: { participantId: string; optionId: string; dots: number }[];
+  decisionOptionId?: string;
+};
+
+export async function loadJamHistory(jamId: string): Promise<RoundHistory[]> {
+  const [ideas, reflections, options, dots, decisions] = await Promise.all([
+    sql`select round, participant_id, text, refine, submitted_at
+        from reflection_ideas where jam_id = ${jamId} order by round, participant_id, idx`,
+    sql`select round, participant_id, text, passed, submitted_at
+        from reflections where jam_id = ${jamId} order by round, submitted_at`,
+    sql`select round, id, title, body, attribution, author_id
+        from jam_options where jam_id = ${jamId} order by round, position`,
+    sql`select round, participant_id, option_id, dots
+        from dot_allocations where jam_id = ${jamId} and dots > 0`,
+    sql`select round, option_id from jam_decisions where jam_id = ${jamId}`,
+  ]);
+
+  const byRound = new Map<number, RoundHistory>();
+  const roundOf = (n: number): RoundHistory => {
+    let r = byRound.get(n);
+    if (!r) {
+      r = { round: n, ideas: [], reflections: [], options: [], dots: [] };
+      byRound.set(n, r);
+    }
+    return r;
+  };
+
+  for (const row of ideas) {
+    if (!(row.text as string).trim()) continue;
+    roundOf(row.round as number).ideas.push({
+      participantId: row.participant_id as string,
+      text: row.text as string,
+      refine: row.refine as boolean,
+      submittedAtMs: ms(row.submitted_at as Date)!,
+    });
+  }
+  for (const row of reflections) {
+    roundOf(row.round as number).reflections.push({
+      participantId: row.participant_id as string,
+      text: row.text as string,
+      passed: row.passed as boolean,
+      submittedAtMs: ms(row.submitted_at as Date)!,
+    });
+  }
+  for (const row of options) {
+    roundOf(row.round as number).options.push({
+      id: row.id as string,
+      title: (row.title as string) ?? "",
+      body: (row.body as string) ?? "",
+      attribution: (row.attribution as string) ?? "",
+      authorId: (row.author_id as string) ?? undefined,
+    });
+  }
+  for (const row of dots) {
+    roundOf(row.round as number).dots.push({
+      participantId: row.participant_id as string,
+      optionId: row.option_id as string,
+      dots: row.dots as number,
+    });
+  }
+  for (const row of decisions) {
+    roundOf(row.round as number).decisionOptionId = row.option_id as string;
+  }
+
+  return [...byRound.values()].sort((a, b) => a.round - b.round);
 }
 
 // When the room decided, from either voting model. persistSession's

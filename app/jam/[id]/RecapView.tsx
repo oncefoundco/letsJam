@@ -29,28 +29,18 @@ export type RecapData = {
     votes?: number;
     votesTotal?: number;
   };
-  reflections: {
-    name: string;
-    bg: string;
-    text: string;
-    passed: boolean;
-    submittedAtMs?: number;
-    // The person's individual takes where they exist; `text` is the joined
-    // fallback for jams that predate per-idea rows.
-    ideas?: { text: string; refine: boolean }[];
-  }[];
-  options: {
-    id: string;
-    title: string;
-    body?: string;
-    attribution?: string;
-    dots: number;
-    colors: string[];
-    // Who put dots on this option, by name — the vote-transparency line.
-    voters: { name: string; bg: string; dots: number }[];
-    winner: boolean;
-  }[];
+  reflections: RecapReflection[];
+  options: RecapOption[];
   refineDots: number;
+  // Earlier rounds' full story — ideas, options, and the dot vote with named
+  // voters — kept now that round advances no longer delete history. Each
+  // renders as its own timeline block before the current round's sections.
+  pastRounds: {
+    round: number;
+    reflections: RecapReflection[];
+    options: RecapOption[];
+    refineDots: number;
+  }[];
   perspectives: {
     slot: "A" | "B";
     label: string;
@@ -67,6 +57,29 @@ export type RecapData = {
   refineContext: string[];
 };
 
+export type RecapReflection = {
+  name: string;
+  bg: string;
+  text: string;
+  passed: boolean;
+  submittedAtMs?: number;
+  // The person's individual takes where they exist; `text` is the joined
+  // fallback for jams that predate per-idea rows.
+  ideas?: { text: string; refine: boolean }[];
+};
+
+export type RecapOption = {
+  id: string;
+  title: string;
+  body?: string;
+  attribution?: string;
+  dots: number;
+  colors: string[];
+  // Who put dots on this option, by name — the vote-transparency line.
+  voters: { name: string; bg: string; dots: number }[];
+  winner: boolean;
+};
+
 const PS = { fontFamily: "var(--font-public-sans)" } as const;
 const QUEENS = { fontFamily: "var(--font-queens)" } as const;
 
@@ -78,6 +91,9 @@ export function RecapView({ data }: { data: RecapData }) {
   // the jam actually went: round 1's narrowing first, the decision last.
   const stages = useMemo<Stage[]>(() => {
     const s: Stage[] = [];
+    for (const pr of data.pastRounds) {
+      s.push({ id: `round-${pr.round}`, label: `Round ${pr.round} — the dot vote` });
+    }
     if (data.narrowedIdeas.length) s.push({ id: "narrowed", label: "What we narrowed to" });
     if (data.refineContext.length) s.push({ id: "refined", label: "Why we refined" });
     if (data.reflections.length) s.push({ id: "brought", label: "What people brought" });
@@ -160,6 +176,25 @@ export function RecapView({ data }: { data: RecapData }) {
           ) : null}
         </div>
 
+        {data.pastRounds.map((pr) => (
+          <Section key={pr.round} id={`round-${pr.round}`}>
+            <Card title={`Round ${pr.round} — the dot vote`}>
+              {pr.reflections.length ? (
+                <div className="flex flex-col gap-4">
+                  <SubHeading>What people brought</SubHeading>
+                  <ReflectionList items={pr.reflections} />
+                </div>
+              ) : null}
+              {pr.options.length ? (
+                <div className="flex flex-col gap-4">
+                  <SubHeading>How the dots fell</SubHeading>
+                  <OptionList options={pr.options} refineDots={pr.refineDots} />
+                </div>
+              ) : null}
+            </Card>
+          </Section>
+        ))}
+
         {data.narrowedIdeas.length ? (
           <Section id="narrowed">
             <Card title="What we narrowed to">
@@ -199,53 +234,7 @@ export function RecapView({ data }: { data: RecapData }) {
         {data.reflections.length ? (
           <Section id="brought">
             <Card title="What people brought">
-              <ul className="flex flex-col gap-5">
-                {data.reflections.map((r, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <Avatar name={r.name} bg={r.bg} />
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <p
-                        className="text-[14px] font-semibold leading-none text-[#1a1a1a]"
-                        style={PS}
-                        suppressHydrationWarning
-                      >
-                        {r.name}
-                        {r.submittedAtMs ? (
-                          <span className="ml-2 font-normal text-[#1a1a1a]/40">
-                            {fmtClock(r.submittedAtMs)}
-                          </span>
-                        ) : null}
-                      </p>
-                      {r.passed ? (
-                        <p className="text-[15px] italic leading-[1.5] text-[#1a1a1a]/40" style={PS}>
-                          Passed this round
-                        </p>
-                      ) : r.ideas?.length ? (
-                        <ul className="flex flex-col gap-1.5">
-                          {r.ideas.map((idea, j) => (
-                            <li
-                              key={j}
-                              className="text-[15px] leading-[1.5] text-muted-ink"
-                              style={PS}
-                            >
-                              {idea.text}
-                              {idea.refine ? (
-                                <span className="ml-2 rounded-full bg-[#f5f5f5] px-2 py-0.5 text-[11px] italic text-[#1a1a1a]/50">
-                                  wanted another round
-                                </span>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="whitespace-pre-line text-[15px] leading-[1.5] text-muted-ink" style={PS}>
-                          {r.text}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <ReflectionList items={data.reflections} />
             </Card>
           </Section>
         ) : null}
@@ -253,77 +242,7 @@ export function RecapView({ data }: { data: RecapData }) {
         {data.options.length ? (
           <Section id="options">
             <Card title="The options on the table">
-              <ul className="flex flex-col gap-3">
-                {data.options.map((o) => (
-                  <li
-                    key={o.id}
-                    className={`flex flex-col gap-2 rounded-2xl p-[18px] ${
-                      o.winner ? "bg-[#1a1a1a] text-white" : "bg-[#f5f5f5] text-[#1a1a1a]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <p className="text-[15px] font-medium leading-[1.4]" style={PS}>
-                        {o.title}
-                      </p>
-                      {o.winner ? (
-                        <span
-                          className="shrink-0 rounded-full bg-jam-yellow px-3 py-1.5 text-[11px] font-semibold leading-none text-[#1a1a1a]"
-                          style={PS}
-                        >
-                          Winner
-                        </span>
-                      ) : null}
-                    </div>
-                    {o.body ? (
-                      <p
-                        className={`text-[14px] leading-[1.5] ${o.winner ? "text-white/70" : "text-[#1a1a1a]/60"}`}
-                        style={PS}
-                      >
-                        {o.body}
-                      </p>
-                    ) : null}
-                    <div className="flex items-center justify-between gap-4">
-                      <Dots colors={o.colors} dim={o.winner} />
-                      <span
-                        className={`text-[13px] leading-none ${o.winner ? "text-white/70" : "text-[#1a1a1a]/50"}`}
-                        style={PS}
-                      >
-                        {o.dots} {o.dots === 1 ? "dot" : "dots"}
-                        {o.attribution ? ` · ${o.attribution}` : ""}
-                      </span>
-                    </div>
-                    {o.voters.length ? (
-                      <p
-                        className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.4] ${
-                          o.winner ? "text-white/70" : "text-[#1a1a1a]/60"
-                        }`}
-                        style={PS}
-                      >
-                        {o.voters.map((v, i) => (
-                          <span key={i} className="inline-flex items-center gap-1.5">
-                            <span
-                              className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: v.bg }}
-                            />
-                            {v.name} · {v.dots}
-                          </span>
-                        ))}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-                {data.refineDots > 0 ? (
-                  <li
-                    className="flex items-center justify-between rounded-2xl border border-dashed border-[#1a1a1a]/20 p-[18px] text-[14px] italic text-[#1a1a1a]/50"
-                    style={PS}
-                  >
-                    <span>Let&apos;s refine and go again</span>
-                    <span>
-                      {data.refineDots} {data.refineDots === 1 ? "dot" : "dots"}
-                    </span>
-                  </li>
-                ) : null}
-              </ul>
+              <OptionList options={data.options} refineDots={data.refineDots} />
             </Card>
           </Section>
         ) : null}
@@ -550,6 +469,156 @@ function Section({ id, children }: { id: string; children: React.ReactNode }) {
     <section id={`recap-${id}`} className="scroll-mt-28">
       {children}
     </section>
+  );
+}
+
+// The little label above each sub-block inside a past-round card.
+function SubHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="text-[12px] font-semibold uppercase leading-none tracking-[0.08em] text-[#1a1a1a]/60"
+      style={PS}
+    >
+      {children}
+    </p>
+  );
+}
+
+// One round's reflections: each person with their individual ideas (or the
+// joined text fallback) and the time they submitted.
+function ReflectionList({ items }: { items: RecapReflection[] }) {
+  return (
+    <ul className="flex flex-col gap-5">
+      {items.map((r, i) => (
+        <li key={i} className="flex items-start gap-3">
+          <Avatar name={r.name} bg={r.bg} />
+          <div className="flex min-w-0 flex-col gap-1">
+            <p
+              className="text-[14px] font-semibold leading-none text-[#1a1a1a]"
+              style={PS}
+              suppressHydrationWarning
+            >
+              {r.name}
+              {r.submittedAtMs ? (
+                <span className="ml-2 font-normal text-[#1a1a1a]/40">
+                  {fmtClock(r.submittedAtMs)}
+                </span>
+              ) : null}
+            </p>
+            {r.passed ? (
+              <p className="text-[15px] italic leading-[1.5] text-[#1a1a1a]/40" style={PS}>
+                Passed this round
+              </p>
+            ) : r.ideas?.length ? (
+              <ul className="flex flex-col gap-1.5">
+                {r.ideas.map((idea, j) => (
+                  <li
+                    key={j}
+                    className="text-[15px] leading-[1.5] text-muted-ink"
+                    style={PS}
+                  >
+                    {idea.text}
+                    {idea.refine ? (
+                      <span className="ml-2 rounded-full bg-[#f5f5f5] px-2 py-0.5 text-[11px] italic text-[#1a1a1a]/50">
+                        wanted another round
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="whitespace-pre-line text-[15px] leading-[1.5] text-muted-ink" style={PS}>
+                {r.text}
+              </p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// One round's option cards: tally, per-voter colored dots, and the named
+// who-voted-where breakdown, plus the refine row when anyone spent dots on it.
+function OptionList({
+  options,
+  refineDots,
+}: {
+  options: RecapOption[];
+  refineDots: number;
+}) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {options.map((o) => (
+        <li
+          key={o.id}
+          className={`flex flex-col gap-2 rounded-2xl p-[18px] ${
+            o.winner ? "bg-[#1a1a1a] text-white" : "bg-[#f5f5f5] text-[#1a1a1a]"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-[15px] font-medium leading-[1.4]" style={PS}>
+              {o.title}
+            </p>
+            {o.winner ? (
+              <span
+                className="shrink-0 rounded-full bg-jam-yellow px-3 py-1.5 text-[11px] font-semibold leading-none text-[#1a1a1a]"
+                style={PS}
+              >
+                Winner
+              </span>
+            ) : null}
+          </div>
+          {o.body ? (
+            <p
+              className={`text-[14px] leading-[1.5] ${o.winner ? "text-white/70" : "text-[#1a1a1a]/60"}`}
+              style={PS}
+            >
+              {o.body}
+            </p>
+          ) : null}
+          <div className="flex items-center justify-between gap-4">
+            <Dots colors={o.colors} dim={o.winner} />
+            <span
+              className={`text-[13px] leading-none ${o.winner ? "text-white/70" : "text-[#1a1a1a]/50"}`}
+              style={PS}
+            >
+              {o.dots} {o.dots === 1 ? "dot" : "dots"}
+              {o.attribution ? ` · ${o.attribution}` : ""}
+            </span>
+          </div>
+          {o.voters.length ? (
+            <p
+              className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.4] ${
+                o.winner ? "text-white/70" : "text-[#1a1a1a]/60"
+              }`}
+              style={PS}
+            >
+              {o.voters.map((v, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: v.bg }}
+                  />
+                  {v.name} · {v.dots}
+                </span>
+              ))}
+            </p>
+          ) : null}
+        </li>
+      ))}
+      {refineDots > 0 ? (
+        <li
+          className="flex items-center justify-between rounded-2xl border border-dashed border-[#1a1a1a]/20 p-[18px] text-[14px] italic text-[#1a1a1a]/50"
+          style={PS}
+        >
+          <span>Let&apos;s refine and go again</span>
+          <span>
+            {refineDots} {refineDots === 1 ? "dot" : "dots"}
+          </span>
+        </li>
+      ) : null}
+    </ul>
   );
 }
 
