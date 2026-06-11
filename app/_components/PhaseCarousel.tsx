@@ -5,14 +5,18 @@ import { useEffect, useState } from "react";
 import { Reveal } from "@/app/_components/Reveal";
 
 /*
- * The four moves of a Jam, as an auto-advancing feature carousel. Each slide is
- * a full-bleed image with a centered caption; a frosted strip + gradient keep
- * the white type legible over any photo. The bottom tabs double as the progress
- * indicator — the active one's underline fills over the slide duration. Pauses
- * on hover/focus; under prefers-reduced-motion it doesn't auto-advance (tabs
- * still work) and the progress bar shows full instead of animating.
+ * The four moves of a Jam, as an auto-advancing feature carousel (everyday.io
+ * pattern). Each slide is a near full-screen mockup with the active phase's
+ * headline up top and the per-phase descriptions in the bottom tabs — the
+ * active tab is bright, reveals its phase mark (▶ ■ ● ◆), and its underline
+ * fills over the slide duration as the progress indicator. Every mockup is a
+ * light app window on a dark studio backdrop, so a top/bottom gradient keeps the
+ * white headline + tabs legible while the centered window stays clear.
+ * Auto-advance runs continuously (no hover/focus pause); prefers-reduced-motion
+ * disables it (tabs still work) and the progress bar shows full.
  *
- * Copy + images are reused from the prior PhaseWalkthrough for now.
+ * Copy reused from the prior PhaseWalkthrough; images are letsJam-branded
+ * placeholder mockups (public/landing/mock-*.png) pending real product shots.
  */
 
 const EASE = "cubic-bezier(0.25, 1, 0.5, 1)";
@@ -20,12 +24,15 @@ const SLIDE_MS = 6000;
 
 const dmSans = { fontFamily: "var(--font-dm-sans)" } as const;
 
+type Shape = "triangle" | "square" | "circle" | "diamond";
+
 type Phase = {
   key: string;
   title: string;
   lead: string;
   image: string;
   alt: string;
+  icon: Shape;
 };
 
 const PHASES: Phase[] = [
@@ -33,38 +40,105 @@ const PHASES: Phase[] = [
     key: "Converse",
     title: "Start by getting it all on the table.",
     lead: "Talk the problem through out loud while Jam quietly captures the decisions you're actually making.",
-    image: "/landing/feature-converse.png",
-    alt: "A letsJam video call with the team talking it out",
+    image: "/landing/mock-converse.png",
+    alt: "The letsJam call: the team talking the problem through",
+    icon: "triangle",
   },
   {
     key: "Diverge",
     title: "Then reflect on what actually matters.",
     lead: "Everyone writes their own take first, so no one just nods along with whoever's loudest.",
-    image: "/landing/personal-space.png",
-    alt: "A quiet, personal space to write down your own thinking",
+    image: "/landing/mock-diverge.png",
+    alt: "A private space to write down your own thinking",
+    icon: "square",
   },
   {
     key: "Collaborate",
     title: "Shape the options together.",
     lead: "Priorities go up at once, Jam groups the overlaps, and you vote on what a good answer has to nail.",
-    image: "/landing/hero-collage.png",
-    alt: "The team aligning on what matters together",
+    image: "/landing/mock-collaborate.png",
+    alt: "Dot-voting to shape the options together",
+    icon: "circle",
   },
   {
     key: "Decide",
     title: "Make a call the whole room's behind.",
     lead: "Weigh the options against what matters and vote. If a few still feel off, you go again.",
-    image: "/landing/hero-photo.png",
-    alt: "A team committing to a decision together",
+    image: "/landing/mock-decide.png",
+    alt: "The decision the whole room is behind",
+    icon: "diamond",
   },
 ];
 
+// Each phase's mark: ▶ Converse, ■ Diverge, ● Collaborate, ◆ Decide.
+function PhaseIcon({
+  shape,
+  className,
+  style,
+}: {
+  shape: Shape;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const p = { className, style, viewBox: "0 0 24 24", fill: "currentColor" } as const;
+  switch (shape) {
+    case "triangle":
+      return (
+        <svg {...p} aria-hidden>
+          <path d="M6 3.5l14.5 8.5L6 20.5z" />
+        </svg>
+      );
+    case "square":
+      return (
+        <svg {...p} aria-hidden>
+          <rect x="4" y="4" width="16" height="16" rx="3" />
+        </svg>
+      );
+    case "circle":
+      return (
+        <svg {...p} aria-hidden>
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      );
+    case "diamond":
+      return (
+        <svg {...p} aria-hidden>
+          <path d="M12 2.2l9.8 9.8-9.8 9.8L2.2 12z" />
+        </svg>
+      );
+  }
+}
+
+function ProgressBar({
+  active,
+  reduced,
+  activeKey,
+}: {
+  active: boolean;
+  reduced: boolean;
+  activeKey: number;
+}) {
+  return (
+    <span className="block h-[2px] w-full overflow-hidden bg-white/25">
+      <span
+        key={active ? `on-${activeKey}` : "off"}
+        className="block h-full w-full origin-left bg-white"
+        style={
+          active
+            ? reduced
+              ? { transform: "scaleX(1)" }
+              : { animation: `lj-phase-progress ${SLIDE_MS}ms linear both` }
+            : { transform: "scaleX(0)" }
+        }
+      />
+    </span>
+  );
+}
+
 export function PhaseCarousel() {
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(false);
 
-  // Respect reduced-motion: no autoplay, no progress animation.
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setReduced(mq.matches);
@@ -73,33 +147,26 @@ export function PhaseCarousel() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  // Auto-advance. Re-runs on every slide change (so a manual tab also resets
-  // the clock) and stops while paused or under reduced-motion.
+  // Auto-advance — keeps running regardless of hover/focus. Re-runs on each
+  // slide change so a manual tap also resets the clock; reduced-motion disables.
   useEffect(() => {
-    if (paused || reduced) return;
+    if (reduced) return;
     const t = setTimeout(
       () => setActive((a) => (a + 1) % PHASES.length),
       SLIDE_MS,
     );
     return () => clearTimeout(t);
-  }, [active, paused, reduced]);
+  }, [active, reduced]);
 
   return (
-    <Reveal
-      as="section"
-      className="px-4 pb-24 sm:px-6 md:px-8 lg:px-12 xl:px-[80px] 2xl:px-[117px]"
-    >
+    <Reveal as="section" className="px-3 pb-24 lg:px-4">
       <div
         role="region"
         aria-roledescription="carousel"
         aria-label="The four moves of a Jam"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onFocusCapture={() => setPaused(true)}
-        onBlurCapture={() => setPaused(false)}
-        className="relative aspect-[4/5] w-full overflow-hidden rounded-[32px] bg-[#e6e6e6] sm:aspect-[4/3] lg:aspect-[16/9]"
+        className="relative aspect-[4/5] w-full overflow-hidden bg-[#0c0c0e] sm:aspect-[16/10] lg:aspect-auto lg:h-[100svh] lg:min-h-[640px]"
       >
-        {/* Slides: crossfade between the photos. */}
+        {/* Slides: crossfade between the mockups. */}
         {PHASES.map((p, i) => (
           <div
             key={p.key}
@@ -115,63 +182,49 @@ export function PhaseCarousel() {
               alt={p.alt}
               fill
               priority={i === 0}
-              sizes="(min-width: 1024px) 1200px, 100vw"
+              sizes="100vw"
               className="object-cover"
             />
           </div>
         ))}
 
-        {/* Legibility: a soft top→bottom darkening for the centered caption, */}
+        {/* Legibility: darken the top and bottom bands (headline + tabs) while
+            leaving the centered app window clear. */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.36)_0%,rgba(0,0,0,0.14)_38%,rgba(0,0,0,0.30)_72%,rgba(0,0,0,0.58)_100%)]"
-        />
-        {/* plus a frosted strip behind the tabs (everyday.io's trick). */}
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 h-[42%] backdrop-blur-[16px] [-webkit-mask-image:linear-gradient(to_top,#000_0%,rgba(0,0,0,0.75)_45%,transparent_100%)] [mask-image:linear-gradient(to_top,#000_0%,rgba(0,0,0,0.75)_45%,transparent_100%)]"
+          className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.05)_26%,rgba(0,0,0,0.05)_66%,rgba(0,0,0,0.65)_100%)]"
         />
 
-        {/* Foreground: caption centered above the tab nav. */}
+        {/* Foreground: headline up top, tabs at the bottom. */}
         <div className="relative z-[2] flex h-full flex-col">
-          <div className="flex flex-1 items-center justify-center px-6 pt-12 text-center">
-            {PHASES.map((p, i) => (
-              <div
-                key={p.key}
-                aria-hidden={i !== active}
-                className="absolute max-w-[40rem] px-6"
-                style={{
-                  opacity: i === active ? 1 : 0,
-                  transform: i === active ? "none" : "translateY(8px)",
-                  transition: `opacity 800ms ${EASE}, transform 800ms ${EASE}`,
-                  pointerEvents: i === active ? "auto" : "none",
-                }}
-              >
-                <p
-                  className="text-[14px] font-medium tracking-[0.01em] text-white/75"
-                  style={dmSans}
+          {/* Top copy — the active phase headline. */}
+          <div className="px-6 pt-10 text-center sm:pt-14 lg:px-12 lg:pt-16">
+            <div className="relative mx-auto min-h-[3.5rem] max-w-[48rem] sm:min-h-[4.5rem] lg:min-h-[5rem]">
+              {PHASES.map((p, i) => (
+                <h2
+                  key={p.key}
+                  aria-hidden={i !== active}
+                  className="heading-display absolute inset-x-0 top-0 text-[clamp(1.875rem,4vw,3.5rem)] leading-[0.96] text-white [text-wrap:balance]"
+                  style={{
+                    opacity: i === active ? 1 : 0,
+                    transition: `opacity 700ms ${EASE}`,
+                  }}
                 >
-                  {p.key}
-                </p>
-                <h2 className="heading-display mt-3 text-[clamp(2rem,4.6vw,3.5rem)] leading-[0.92] text-white [text-wrap:balance]">
                   {p.title}
                 </h2>
-                <p
-                  className="mx-auto mt-4 max-w-[34rem] text-[15px] leading-[1.45] text-white/85 sm:text-[17px]"
-                  style={dmSans}
-                >
-                  {p.lead}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Tabs / progress. */}
+          <div className="flex-1" />
+
+          {/* Tabs — per-phase descriptions; active is bright + shows its mark. */}
           <nav
             aria-label="Jam phases"
-            className="px-4 pb-5 sm:px-6 lg:px-8 lg:pb-7"
+            className="px-4 pb-7 sm:px-6 lg:px-10 lg:pb-10"
           >
-            <div className="mx-auto grid max-w-[1100px] grid-cols-4 gap-2 sm:gap-4">
+            {/* Desktop: all four, name + description + mark + progress. */}
+            <div className="mx-auto hidden max-w-[1240px] grid-cols-4 gap-8 lg:grid">
               {PHASES.map((p, i) => {
                 const isActive = i === active;
                 return (
@@ -181,36 +234,94 @@ export function PhaseCarousel() {
                     onClick={() => setActive(i)}
                     aria-current={isActive}
                     aria-label={`Show ${p.key}`}
-                    className="group flex flex-col items-start pt-3 text-left outline-none transition-opacity duration-300 focus-visible:opacity-100"
-                    style={{ opacity: isActive ? 1 : 0.55 }}
+                    className="flex h-full flex-col items-start text-left outline-none transition-opacity duration-300 focus-visible:opacity-100"
+                    style={{ opacity: isActive ? 1 : 0.5 }}
                   >
                     <span
-                      className="mb-3 text-[13px] font-medium leading-none text-white sm:text-[15px]"
+                      className="text-[18px] font-medium leading-none text-white"
                       style={dmSans}
                     >
                       {p.key}
                     </span>
-                    <span className="block h-[2px] w-full overflow-hidden bg-white/25">
-                      <span
-                        key={isActive ? `on-${active}` : `off-${i}`}
-                        className="block h-full w-full origin-left bg-white"
-                        style={
-                          isActive
-                            ? reduced
-                              ? { transform: "scaleX(1)" }
-                              : {
-                                  animation: `lj-phase-progress ${SLIDE_MS}ms linear both`,
-                                  animationPlayState: paused
-                                    ? "paused"
-                                    : "running",
-                                }
-                            : { transform: "scaleX(0)" }
-                        }
+                    <span
+                      className="mt-3 text-[13px] leading-[1.4] text-white/75"
+                      style={dmSans}
+                    >
+                      {p.lead}
+                    </span>
+                    {/* Bottom-pinned: mark (revealed on active) + progress bar. */}
+                    <span className="mt-auto w-full pt-5">
+                      <span className="mb-3 block h-5">
+                        <PhaseIcon
+                          shape={p.icon}
+                          className="h-5 w-5 text-white transition-all duration-300"
+                          style={{
+                            opacity: isActive ? 1 : 0,
+                            transform: isActive ? "scale(1)" : "scale(0.6)",
+                          }}
+                        />
+                      </span>
+                      <ProgressBar
+                        active={isActive}
+                        reduced={reduced}
+                        activeKey={active}
                       />
                     </span>
                   </button>
                 );
               })}
+            </div>
+
+            {/* Mobile: active phase's mark + copy, then a row of progress segments. */}
+            <div className="lg:hidden">
+              <div className="relative min-h-[6.5rem]">
+                {PHASES.map((p, i) => (
+                  <div
+                    key={p.key}
+                    aria-hidden={i !== active}
+                    className="absolute inset-0"
+                    style={{
+                      opacity: i === active ? 1 : 0,
+                      transition: `opacity 500ms ${EASE}`,
+                      pointerEvents: i === active ? "auto" : "none",
+                    }}
+                  >
+                    <PhaseIcon
+                      shape={p.icon}
+                      className="mb-3 h-5 w-5 text-white"
+                    />
+                    <p
+                      className="text-[18px] font-medium leading-none text-white"
+                      style={dmSans}
+                    >
+                      {p.key}
+                    </p>
+                    <p
+                      className="mt-2 text-[13px] leading-[1.4] text-white/75"
+                      style={dmSans}
+                    >
+                      {p.lead}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex gap-2">
+                {PHASES.map((p, i) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setActive(i)}
+                    aria-label={`Show ${p.key}`}
+                    className="min-w-0 flex-1 py-1 outline-none"
+                  >
+                    <ProgressBar
+                      active={i === active}
+                      reduced={reduced}
+                      activeKey={active}
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
           </nav>
         </div>
