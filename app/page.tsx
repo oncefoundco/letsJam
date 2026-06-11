@@ -55,14 +55,19 @@ function Hero() {
   // the headline / subcopy / CTA bottom-left over a dark corner gradient.
   return (
     <section className="relative h-[100svh] min-h-[600px] w-full overflow-hidden">
-      <Image
-        src="/landing/hero-figma.jpg"
-        alt="A teammate running a focused session on letsJam"
-        fill
-        priority
-        sizes="100vw"
-        className="lj-zoom object-cover object-center"
-      />
+      {/* Ambient background video; the still is the poster so the first frame
+          paints instantly and serves as the fallback. */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        poster="/landing/hero-figma.jpg"
+        aria-hidden
+        className="lj-zoom absolute inset-0 h-full w-full object-cover object-center"
+      >
+        <source src="/landing/hero.mp4" type="video/mp4" />
+      </video>
 
       {/* Legibility: darken the bottom-left (copy) and a touch of the top-left
           (logo), fading to clear toward the top-right. */}
