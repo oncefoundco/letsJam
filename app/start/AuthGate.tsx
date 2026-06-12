@@ -111,7 +111,7 @@ export function LoginModal({ next = "/start" }: { next?: string }) {
 
   return (
     <ModalShell>
-      <ModalTitle>Hey there! Let&rsquo;s get you signed up for your first jam</ModalTitle>
+      <ModalTitle>Hey there! Sign up to host your first jam</ModalTitle>
       <div className="flex flex-col gap-3">
         <button
           type="button"
