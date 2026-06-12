@@ -112,9 +112,8 @@ function Hero() {
 const PROMISE = [
   "We started Jam with a frustration: strategic decisions inside teams don't actually get made in meetings. They get made in 1:1s after the meeting, in DMs the day after, or most often, they don't get made at all, and the team relitigates the same question two weeks later in a new meeting room.",
   "The cost of this isn't time. It's commitment. Decisions made this way are decisions nobody owns. They unravel the moment someone pushes back in Slack, and the team learns to stop bringing real disagreement to the table.",
-  "We don't think the solution is better meetings. We think the solution is a different kind of meeting, one where the structure of the conversation forces the room to do what good facilitators have always done by hand: get private thinking on the table before group thinking distorts it, surface the real disagreement instead of papering over it, and refuse to lock a decision until every dissent has been heard.",
-  "That's what letsJam is. A room where AI runs the methodology, the team does the thinking, and the call you make at the end is one the whole room actually committed to — not the loudest person's preference dressed up as consensus.",
-  "Our mission is to make team strategic decisions sharper, faster, and honest. We think most teams have far better strategic instincts than their meetings let them express. letsJam is the room that lets them.",
+  "We don't think the solution is better meetings. We think the solution is a different kind of meeting, one where the structure of the conversation forces the room to do what good facilitators have always done.",
+  "That's what letsJam is. A shared room where we run the methodology, your team does the thinking, and the call you make at the end is one the whole room actually committed to — not the loudest person's preference dressed up as consensus.",
 ];
 
 const FOUNDERS = [
