@@ -27,7 +27,7 @@ const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 // panel (object-cover) anchored top-left, so it reads large and the right
 // sidebar / bottom edge bleed off — matching the near-full-bleed window in the
 // Figma comp, rather than a small letterboxed object-contain image.
-const MOCKUP_CLASS = "h-full w-full select-none object-cover object-top";
+const MOCKUP_CLASS = "h-full w-full select-none object-cover object-left-top";
 
 type Phase = {
   key: string;
