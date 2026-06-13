@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PhaseMockup } from "@/app/_components/PhaseMockup";
 
 /*
  * PhaseWalkthrough — the four-step methodology, told as one pinned canvas.
@@ -35,33 +35,25 @@ const PHASES: Phase[] = [
     key: "Converse",
     title: "Start by getting it all on the table.",
     body: "Every meeting kicks off with someone's version of the problem, and it's never quite the whole picture. So you just talk it through — keep it short. And while you're talking, Jam's quietly pulling out the decisions you're actually making, so you don't walk away with a page of notes and nothing decided.",
-    visual: (
-      <Image
-        src="/landing/feature-converse.png"
-        alt="A letsJam video call with the team talking it out"
-        fill
-        sizes="(min-width: 1024px) 900px, 100vw"
-        className="object-cover"
-      />
-    ),
+    visual: <PhaseMockup variant="Converse" />,
   },
   {
     key: "Diverge",
     title: "Then reflect on what actually matters.",
     body: "Here's the bit most meetings skip. Before the room rallies around anything, everyone goes quiet and writes down what they think on their own — so nobody's just nodding along with whoever's loudest. First time round, it's your three priorities for the problem. Later on, it's your one best solution.",
-    visual: <ReflectVisual />,
+    visual: <PhaseMockup variant="Diverge" />,
   },
   {
     key: "Collaborate",
     title: "Now shape the options together.",
     body: "This is the part that makes the rest work. Everyone's priorities go up at once, Jam groups the ones that are really the same thing, and you vote down to the three the solution has to nail. So you've agreed what good actually looks like before anyone's pitched a single idea.",
-    visual: <AlignVisual />,
+    visual: <PhaseMockup variant="Collaborate" />,
   },
   {
     key: "Decide",
     title: "And make a call the whole room's behind.",
     body: "Most decisions are just the loudest person's preference dressed up as agreement — and they fall apart the second someone pushes back later. So here you weigh the solutions against those three things and vote. And if a couple of people still feel something's off, you go again. Nothing's final till everyone's actually been heard.",
-    visual: <DecideVisual />,
+    visual: <PhaseMockup variant="Decide" />,
   },
 ];
 
@@ -284,167 +276,5 @@ function StaticLegend({ active }: { active: number }) {
         ))}
       </div>
     </>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Product vignettes — clean, on-brand mockups standing in for screens  */
-/* we don't have shots of yet. Paper surfaces, ink text, one blue spark. */
-/* ------------------------------------------------------------------ */
-
-function VisualFrame({
-  wash,
-  children,
-}: {
-  wash: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      aria-hidden
-      className="flex h-full w-full items-center justify-center p-6 sm:p-10 lg:p-14"
-      style={{ background: wash }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Bar({ w, dim = false }: { w: string; dim?: boolean }) {
-  return (
-    <span
-      className="block h-[7px] rounded-full"
-      style={{ width: w, background: dim ? "rgba(3,3,3,0.12)" : "rgba(3,3,3,0.22)" }}
-    />
-  );
-}
-
-// Diverge: three private reflections, locked until the timer ends.
-function ReflectVisual() {
-  return (
-    <VisualFrame wash="var(--color-jam-blue)">
-      <div className="flex w-full max-w-[460px] flex-col gap-4 rounded-[20px] bg-white/85 p-5 sm:p-7">
-        <div className="flex items-center justify-between">
-          <span
-            className="text-[14px] text-black/55"
-            style={dmSans}
-          >
-            Reflecting privately
-          </span>
-          <span
-            className="rounded-full bg-[#ebeffa] px-3 py-1 text-[13px] font-medium tabular-nums text-[#3c5bcb]"
-            style={dmSans}
-          >
-            01:48
-          </span>
-        </div>
-        {[0, 1, 2].map((row) => (
-          <div
-            key={row}
-            className="flex items-center gap-3 rounded-[14px] bg-[#f5f5f5] px-4 py-3"
-          >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-black/10 text-black/40">
-              <LockGlyph />
-            </span>
-            <span className="flex flex-1 flex-col gap-[6px]">
-              <Bar w="78%" />
-              <Bar w="52%" dim />
-            </span>
-          </div>
-        ))}
-      </div>
-    </VisualFrame>
-  );
-}
-
-// Collaborate: scattered thinking grouped into a few real options.
-function AlignVisual() {
-  const buckets: { label: string; cards: number }[] = [
-    { label: "Speed", cards: 2 },
-    { label: "Quality", cards: 3 },
-    { label: "Cost", cards: 1 },
-  ];
-  return (
-    <VisualFrame wash="var(--color-jam-yellow)">
-      <div className="grid w-full max-w-[520px] grid-cols-3 gap-3 sm:gap-4">
-        {buckets.map((bucket) => (
-          <div
-            key={bucket.label}
-            className="flex flex-col gap-2 rounded-[16px] bg-white/85 p-3 sm:p-4"
-          >
-            <span
-              className="text-[13px] font-medium text-black"
-              style={dmSans}
-            >
-              {bucket.label}
-            </span>
-            {Array.from({ length: bucket.cards }).map((_, i) => (
-              <span
-                key={i}
-                className="flex flex-col gap-[5px] rounded-[10px] bg-[#f5f5f5] px-3 py-[10px]"
-              >
-                <Bar w="86%" />
-                <Bar w="60%" dim />
-              </span>
-            ))}
-          </div>
-        ))}
-      </div>
-    </VisualFrame>
-  );
-}
-
-// Decide: open dot-vote, one option pulling ahead.
-function DecideVisual() {
-  const options = [
-    { dots: 5, lead: true },
-    { dots: 3, lead: false },
-    { dots: 1, lead: false },
-  ];
-  return (
-    <VisualFrame wash="var(--color-jam-blue)">
-      <div className="flex w-full max-w-[460px] flex-col gap-3 rounded-[20px] bg-white/85 p-5 sm:p-7">
-        {options.map((opt, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 rounded-[14px] px-4 py-3"
-            style={{
-              background: opt.lead ? "#ebeffa" : "#f5f5f5",
-              boxShadow: opt.lead ? "inset 0 0 0 1.5px rgba(60,91,203,0.35)" : "none",
-            }}
-          >
-            <span className="flex flex-1 flex-col gap-[6px]">
-              <Bar w={opt.lead ? "70%" : "58%"} />
-              <Bar w="40%" dim />
-            </span>
-            <span className="flex shrink-0 items-center gap-[5px]">
-              {Array.from({ length: 5 }).map((_, d) => (
-                <span
-                  key={d}
-                  className="h-[10px] w-[10px] rounded-full"
-                  style={{
-                    background: d < opt.dots ? "#3c5bcb" : "rgba(3,3,3,0.10)",
-                  }}
-                />
-              ))}
-            </span>
-          </div>
-        ))}
-      </div>
-    </VisualFrame>
-  );
-}
-
-function LockGlyph() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="5" y="11" width="14" height="9" rx="2" fill="currentColor" />
-      <path
-        d="M8 11V8a4 4 0 0 1 8 0v3"
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-      />
-    </svg>
   );
 }

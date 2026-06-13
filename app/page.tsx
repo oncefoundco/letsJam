@@ -4,7 +4,7 @@ import { BrandShapes } from "@/app/_components/BrandShapes";
 import { Logo } from "@/app/_components/Logo";
 import { HeroVideo } from "@/app/_components/HeroVideo";
 import { LogoIntro } from "@/app/_components/LogoIntro";
-import { PhaseCarousel } from "@/app/_components/PhaseCarousel";
+import { PhaseWalkthrough } from "@/app/_components/PhaseWalkthrough";
 import { Reveal } from "@/app/_components/Reveal";
 
 const dmSans = { fontFamily: "var(--font-dm-sans)" } as const;
@@ -24,7 +24,7 @@ export default function Home() {
 
       <div className="relative z-10 mx-auto max-w-[1920px]">
         <Hero />
-        <PhaseCarousel />
+        <PhaseWalkthrough />
         <Promise />
         <Reveal
           as="footer"
