@@ -129,11 +129,10 @@ export function PhaseWalkthrough() {
       className="relative px-6 md:px-8 lg:px-12 xl:px-[80px]"
       style={enhanced ? { height: `${PHASES.length * 100}vh` } : undefined}
     >
-      <h2 className="sr-only">How a Jam session works</h2>
-
       {enhanced ? (
-        <div className="sticky top-0 flex h-[100svh] items-center">
-          <div className="mx-auto flex w-full max-w-[1758px] flex-col items-stretch gap-5 lg:flex-row lg:gap-8 xl:gap-[72px]">
+        <div className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-8 lg:gap-12">
+          <SectionHeading />
+          <div className="mx-auto flex w-full max-w-[1758px] flex-col items-stretch gap-5 lg:flex-row lg:gap-6 xl:gap-10">
             <Legend active={active} onJump={jump} />
             <div className="relative min-w-0 flex-1 rounded-[24px] bg-white p-6 md:p-10 lg:rounded-[32px] xl:p-16">
               <div className="relative h-[clamp(360px,52svh,520px)] w-full">
@@ -141,7 +140,7 @@ export function PhaseWalkthrough() {
                   <div
                     key={phase.key}
                     aria-hidden={i !== active}
-                    className="absolute inset-0 flex flex-col justify-center gap-5 lg:flex-row lg:justify-start lg:gap-10 xl:gap-16"
+                    className="absolute inset-0 flex flex-col justify-center gap-5 lg:flex-row lg:justify-start lg:gap-6 xl:gap-8"
                     style={{
                       opacity: i === active ? 1 : 0,
                       transform: i === active ? "none" : "translateY(12px)",
@@ -158,15 +157,16 @@ export function PhaseWalkthrough() {
           </div>
         </div>
       ) : (
-        <div className="mx-auto flex max-w-[1758px] flex-col gap-16 py-12 lg:gap-28 lg:py-20">
+        <div className="mx-auto flex max-w-[1758px] flex-col gap-12 py-12 lg:gap-16 lg:py-20">
+          <SectionHeading />
           {PHASES.map((phase, i) => (
             <div
               key={phase.key}
-              className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-[72px]"
+              className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-10"
             >
               <StaticLegend active={i} />
               <div className="min-w-0 flex-1 rounded-[28px] bg-white p-6 md:p-10 lg:rounded-[32px] lg:p-16">
-                <div className="flex flex-col gap-8 lg:h-[440px] lg:flex-row lg:gap-16">
+                <div className="flex flex-col gap-8 lg:h-[440px] lg:flex-row lg:gap-8">
                   <PhaseText phase={phase} />
                   <PhaseVisual phase={phase} />
                 </div>
@@ -179,14 +179,25 @@ export function PhaseWalkthrough() {
   );
 }
 
+// The section title shown above the phases ("How does it work?"), centered.
+// Doubles as the section's accessible heading (the section keeps its
+// aria-label too).
+function SectionHeading() {
+  return (
+    <h2 className="heading-display text-center text-[clamp(2rem,5vw,3.25rem)] leading-[0.95] text-black">
+      How does it work?
+    </h2>
+  );
+}
+
 function PhaseText({ phase }: { phase: Phase }) {
   return (
-    <div className="flex flex-col gap-3 lg:h-full lg:w-[300px] lg:shrink-0 lg:justify-between lg:gap-8 xl:w-[340px]">
-      <h3 className="heading-display text-[clamp(1.5rem,6.5vw,3.5rem)] leading-[0.85] text-black [text-wrap:balance]">
+    <div className="flex flex-col gap-3 lg:h-full lg:w-[300px] lg:shrink-0 lg:justify-between lg:gap-8 xl:w-[330px]">
+      <h3 className="heading-display text-[clamp(1.5rem,5vw,2.5rem)] leading-[0.9] text-black [text-wrap:balance]">
         {phase.title}
       </h3>
       <p
-        className="max-w-[440px] text-[14px] leading-[1.4] tracking-[-0.16px] text-[color:var(--color-muted-ink)] lg:text-[18px] lg:leading-[1.25]"
+        className="max-w-[440px] text-[13px] leading-[1.45] tracking-[-0.14px] text-[color:var(--color-muted-ink)] lg:text-[15px] lg:leading-[1.4]"
         style={dmSans}
       >
         {phase.body}
@@ -216,7 +227,7 @@ function Legend({
   return (
     <nav
       aria-label="Session phases"
-      className="flex shrink-0 flex-row flex-wrap items-center justify-center gap-x-4 gap-y-1 self-center lg:w-[150px] lg:flex-col lg:flex-nowrap lg:items-start lg:justify-center lg:gap-7"
+      className="flex shrink-0 flex-row flex-wrap items-center justify-center gap-x-4 gap-y-1 self-center lg:w-[120px] lg:flex-col lg:flex-nowrap lg:items-start lg:justify-start lg:gap-4 lg:self-start"
     >
       {PHASES.map((phase, i) => {
         const on = i === active;
@@ -229,7 +240,7 @@ function Legend({
             className="group flex items-center text-left focus-visible:outline-none"
           >
             <span
-              className="whitespace-nowrap text-[14px] leading-[0.9] text-black lg:text-[20px]"
+              className="whitespace-nowrap text-[14px] leading-[0.9] text-black lg:text-[15px]"
               style={{
                 ...publicSans,
                 opacity: on ? 1 : 0.3,
@@ -257,11 +268,11 @@ function StaticLegend({ active }: { active: number }) {
           {PHASES[active].key}
         </span>
       </div>
-      <div className="hidden shrink-0 lg:flex lg:w-[108px] lg:flex-col lg:justify-center lg:gap-6">
+      <div className="hidden shrink-0 lg:flex lg:w-[120px] lg:flex-col lg:justify-start lg:gap-4">
         {PHASES.map((phase, i) => (
           <span
             key={phase.key}
-            className={`text-[20px] leading-[0.9] text-black ${
+            className={`text-[15px] leading-[0.9] text-black ${
               i === active ? "" : "opacity-30"
             }`}
             style={publicSans}
