@@ -1,17 +1,16 @@
 /*
- * The per-phase app-window mockup for the PhaseCarousel. Each is an
- * outline-text SVG exported from the Figma phase screens (file
- * b7H9ai9yIYUXAHMJ31HyQV) — same 2035×1250 window across all four, crisp at any
- * size. The dark bezel is part of the art and the corners are transparent, so
- * the window sits cleanly on the slide's pastel. Headline text and the
- * display-only bottom tabs live in the carousel, not in these images.
+ * The per-phase app-window mockup. Fresh exports of the current Figma phase
+ * screens (file b7H9ai9yIYUXAHMJ31HyQV, node 143:1704 et al.) — the earlier
+ * SVGs were stale (e.g. missing the call-tile silhouettes). Each is designed on
+ * paper-grey (#f4f4f4); the walkthrough crops them to its panel with
+ * object-cover.
  */
 
 const SRC: Record<string, string> = {
-  Converse: "/landing/phase-converse.svg",
-  Diverge: "/landing/phase-diverge.svg",
-  Collaborate: "/landing/phase-collaborate.svg",
-  Decide: "/landing/phase-decide.svg",
+  Converse: "/landing/phase-converse-v2.png",
+  Diverge: "/landing/phase-diverge-v2.png",
+  Collaborate: "/landing/phase-collaborate-v2.png",
+  Decide: "/landing/phase-decide-v2.png",
 };
 
 export function PhaseMockup({
@@ -30,7 +29,7 @@ export function PhaseMockup({
       aria-hidden
       draggable={false}
       className={className}
-      style={{ aspectRatio: "2035 / 1250" }}
+      style={{ aspectRatio: "933 / 643" }}
     />
   );
 }
