@@ -15,18 +15,12 @@ export type JamInvite = {
   joinUrl: string;
 };
 
-// The real Product Sans wordmark (public/email/logo.png), always served from
-// the canonical prod domain — never the sending deployment's origin. Emails
-// outlive deployments: a logo URL pointing at a preview deployment (or
-// localhost, in dev sends) breaks forever in the recipient's inbox once that
-// deployment is gone. vercel.json serves /email/* with a long-lived immutable
-// Cache-Control so Gmail's image proxy caches it and the logo renders
-// instantly; if the artwork ever changes, ship it under a NEW filename
-// (logo-v2.png) — the old URL stays cached for up to a year.
-const LOGO_URL = "https://letsjam.so/email/logo.png";
-
+// The brand mark is the drum emoji + "jam". Rendered as inline HTML rather than
+// a hosted image: the drum is a colour emoji (renders natively in every mail
+// client) and "jam" is plain text, so there's no font file or image asset to
+// load — and nothing to break when deployments come and go.
 function renderLogo(): string {
-  return `<img src="${LOGO_URL}" width="120" height="41" alt="letsJam" style="display:block;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;width:120px;height:41px;" />`;
+  return `<span style="display:inline-block;font-family:'Public Sans',Helvetica,Arial,sans-serif;font-weight:700;font-size:30px;line-height:1;letter-spacing:-1px;color:#000;white-space:nowrap;">🥁&nbsp;jam</span>`;
 }
 
 // Queens Compressed is the site's display face; Georgia is its committed
