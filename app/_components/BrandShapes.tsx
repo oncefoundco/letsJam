@@ -63,11 +63,6 @@ export function BrandShapes() {
       aria-hidden
       className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block"
     >
-      {/* warm spark behind the hero — static */}
-      <div
-        className="absolute rounded-[50px] bg-[var(--color-jam-yellow)]"
-        style={{ top: "-10%", right: "-6%", width: "52%", height: "22%", transform: "rotate(-16deg)" }}
-      />
       {/* observer anchor sits at the blue band so the rise triggers there */}
       <div ref={ref} className="absolute" style={{ top: "20%", left: 0, right: 0, height: "1px" }} />
       {/* left blue — rises first */}
