@@ -141,7 +141,7 @@ export function PhaseWalkthrough() {
                   <div
                     key={phase.key}
                     aria-hidden={i !== active}
-                    className="absolute inset-0 flex flex-col justify-center gap-5 lg:flex-row lg:justify-start lg:gap-12 xl:gap-24"
+                    className="absolute inset-0 flex flex-col justify-center gap-5 lg:flex-row lg:justify-start lg:gap-10 xl:gap-16"
                     style={{
                       opacity: i === active ? 1 : 0,
                       transform: i === active ? "none" : "translateY(12px)",
@@ -166,7 +166,7 @@ export function PhaseWalkthrough() {
             >
               <StaticLegend active={i} />
               <div className="min-w-0 flex-1 rounded-[28px] bg-white p-6 md:p-10 lg:rounded-[32px] lg:p-16">
-                <div className="flex flex-col gap-8 lg:h-[440px] lg:flex-row lg:gap-24">
+                <div className="flex flex-col gap-8 lg:h-[440px] lg:flex-row lg:gap-16">
                   <PhaseText phase={phase} />
                   <PhaseVisual phase={phase} />
                 </div>
@@ -181,7 +181,7 @@ export function PhaseWalkthrough() {
 
 function PhaseText({ phase }: { phase: Phase }) {
   return (
-    <div className="flex flex-col gap-3 lg:h-full lg:w-[420px] lg:shrink-0 lg:justify-between lg:gap-8">
+    <div className="flex flex-col gap-3 lg:h-full lg:w-[300px] lg:shrink-0 lg:justify-between lg:gap-8 xl:w-[340px]">
       <h3 className="heading-display text-[clamp(1.5rem,6.5vw,3.5rem)] leading-[0.85] text-black [text-wrap:balance]">
         {phase.title}
       </h3>
