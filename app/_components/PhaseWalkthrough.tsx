@@ -130,7 +130,7 @@ export function PhaseWalkthrough() {
       style={enhanced ? { height: `${PHASES.length * 100}vh` } : undefined}
     >
       {enhanced ? (
-        <div className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-8 lg:gap-12">
+        <div className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28">
           <SectionHeading />
           <div className="mx-auto flex w-full max-w-[1758px] flex-col items-stretch gap-5 lg:flex-row lg:gap-6 xl:gap-10">
             <Legend active={active} onJump={jump} />
@@ -184,7 +184,10 @@ export function PhaseWalkthrough() {
 // aria-label too).
 function SectionHeading() {
   return (
-    <h2 className="heading-display text-center text-[clamp(2rem,5vw,3.25rem)] leading-[0.95] text-black">
+    <h2
+      className="heading-display text-center text-[clamp(2.5rem,7vw,5rem)] leading-[0.9] tracking-[-0.03em] text-black"
+      style={{ fontWeight: 300 }}
+    >
       How does it work?
     </h2>
   );
