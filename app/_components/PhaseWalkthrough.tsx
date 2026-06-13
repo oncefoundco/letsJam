@@ -221,17 +221,8 @@ function Legend({
             type="button"
             onClick={() => onJump(i)}
             aria-current={on ? "step" : undefined}
-            className="group flex items-center gap-3 text-left focus-visible:outline-none"
+            className="group flex items-center text-left focus-visible:outline-none"
           >
-            <span
-              aria-hidden
-              className="hidden h-[2px] w-7 shrink-0 origin-left rounded-full bg-black lg:block"
-              style={{
-                transform: `scaleX(${on ? 1 : 0.43})`,
-                opacity: on ? 1 : 0.25,
-                transition: `transform 500ms ${EASE}, opacity 500ms ${EASE}`,
-              }}
-            />
             <span
               className="whitespace-nowrap text-[14px] leading-[0.9] text-black lg:text-[20px]"
               style={{
@@ -256,8 +247,7 @@ function Legend({
 function StaticLegend({ active }: { active: number }) {
   return (
     <>
-      <div className="flex shrink-0 items-center gap-3 lg:hidden">
-        <span aria-hidden className="h-[2px] w-7 shrink-0 rounded-full bg-black" />
+      <div className="flex shrink-0 items-center lg:hidden">
         <span className="text-[18px] leading-[0.9] text-black" style={publicSans}>
           {PHASES[active].key}
         </span>
