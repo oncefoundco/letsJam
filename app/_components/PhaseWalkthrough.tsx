@@ -23,6 +23,12 @@ const publicSans = { fontFamily: "var(--font-public-sans)" } as const;
 // Exponential ease-out. No bounce, no elastic (per the design system).
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 
+// The stacked walkthrough gives the mockup its own panel: the window fills the
+// panel (object-cover) anchored top-left, so it reads large and the right
+// sidebar / bottom edge bleed off — matching the near-full-bleed window in the
+// Figma comp, rather than a small letterboxed object-contain image.
+const MOCKUP_CLASS = "h-full w-full select-none object-cover object-top";
+
 type Phase = {
   key: string;
   title: React.ReactNode;
@@ -35,25 +41,25 @@ const PHASES: Phase[] = [
     key: "Converse",
     title: "Start by getting it all on the table.",
     body: "Every meeting kicks off with someone's version of the problem, and it's never quite the whole picture. So you just talk it through — keep it short. And while you're talking, Jam's quietly pulling out the decisions you're actually making, so you don't walk away with a page of notes and nothing decided.",
-    visual: <PhaseMockup variant="Converse" />,
+    visual: <PhaseMockup variant="Converse" className={MOCKUP_CLASS} />,
   },
   {
     key: "Diverge",
     title: "Then reflect on what actually matters.",
     body: "Here's the bit most meetings skip. Before the room rallies around anything, everyone goes quiet and writes down what they think on their own — so nobody's just nodding along with whoever's loudest. First time round, it's your three priorities for the problem. Later on, it's your one best solution.",
-    visual: <PhaseMockup variant="Diverge" />,
+    visual: <PhaseMockup variant="Diverge" className={MOCKUP_CLASS} />,
   },
   {
     key: "Collaborate",
     title: "Now shape the options together.",
     body: "This is the part that makes the rest work. Everyone's priorities go up at once, Jam groups the ones that are really the same thing, and you vote down to the three the solution has to nail. So you've agreed what good actually looks like before anyone's pitched a single idea.",
-    visual: <PhaseMockup variant="Collaborate" />,
+    visual: <PhaseMockup variant="Collaborate" className={MOCKUP_CLASS} />,
   },
   {
     key: "Decide",
     title: "And make a call the whole room's behind.",
     body: "Most decisions are just the loudest person's preference dressed up as agreement — and they fall apart the second someone pushes back later. So here you weigh the solutions against those three things and vote. And if a couple of people still feel something's off, you go again. Nothing's final till everyone's actually been heard.",
-    visual: <PhaseMockup variant="Decide" />,
+    visual: <PhaseMockup variant="Decide" className={MOCKUP_CLASS} />,
   },
 ];
 
@@ -130,7 +136,7 @@ export function PhaseWalkthrough() {
           <div className="mx-auto flex w-full max-w-[1758px] flex-col items-stretch gap-5 lg:flex-row lg:gap-8 xl:gap-[72px]">
             <Legend active={active} onJump={jump} />
             <div className="relative min-w-0 flex-1 rounded-[24px] bg-white p-6 md:p-10 lg:rounded-[32px] xl:p-16">
-              <div className="relative h-[clamp(420px,62svh,600px)] w-full">
+              <div className="relative h-[clamp(360px,52svh,520px)] w-full">
                 {PHASES.map((phase, i) => (
                   <div
                     key={phase.key}
@@ -160,7 +166,7 @@ export function PhaseWalkthrough() {
             >
               <StaticLegend active={i} />
               <div className="min-w-0 flex-1 rounded-[28px] bg-white p-6 md:p-10 lg:rounded-[32px] lg:p-16">
-                <div className="flex flex-col gap-8 lg:h-[480px] lg:flex-row lg:gap-24">
+                <div className="flex flex-col gap-8 lg:h-[440px] lg:flex-row lg:gap-24">
                   <PhaseText phase={phase} />
                   <PhaseVisual phase={phase} />
                 </div>
@@ -190,13 +196,12 @@ function PhaseText({ phase }: { phase: Phase }) {
 }
 
 function PhaseVisual({ phase }: { phase: Phase }) {
+  // The panel has its own height (taller on mobile via the clamp; on desktop it
+  // self-stretches to the row), clips the overflow, and lets the mockup fill it
+  // from the top via object-cover (see MOCKUP_CLASS).
   return (
-    <div className="relative min-h-0 min-w-0 flex-1">
-      <div className="relative mx-auto h-full w-full overflow-hidden rounded-[20px] lg:rounded-[24px]">
-        <div className="relative aspect-[930/576] h-full max-h-full w-full lg:absolute lg:inset-0 lg:aspect-auto">
-          {phase.visual}
-        </div>
-      </div>
+    <div className="relative h-[clamp(240px,58vw,360px)] w-full min-w-0 overflow-hidden rounded-[20px] lg:h-auto lg:flex-1 lg:self-stretch lg:rounded-[24px]">
+      {phase.visual}
     </div>
   );
 }

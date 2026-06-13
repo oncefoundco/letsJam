@@ -14,14 +14,22 @@ const SRC: Record<string, string> = {
   Decide: "/landing/phase-decide.svg",
 };
 
-export function PhaseMockup({ variant }: { variant: string }) {
+export function PhaseMockup({
+  variant,
+  className = "mx-auto max-h-full w-full max-w-[860px] select-none object-contain",
+}: {
+  variant: string;
+  // The carousel keeps the centered 860px cap (default); the stacked
+  // walkthrough passes a fill class so the window grows to its column width.
+  className?: string;
+}) {
   return (
     <img
       src={SRC[variant] ?? SRC.Converse}
       alt=""
       aria-hidden
       draggable={false}
-      className="mx-auto max-h-full w-full max-w-[860px] select-none object-contain"
+      className={className}
       style={{ aspectRatio: "2035 / 1250" }}
     />
   );
