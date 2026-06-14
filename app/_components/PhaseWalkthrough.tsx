@@ -66,7 +66,7 @@ const PHASES: Phase[] = [
 export function PhaseWalkthrough() {
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const [enhanced, setEnhanced] = useState(false);
+  const [mode, setMode] = useState<"stacked" | "snap" | "pinned">("stacked");
   const [active, setActive] = useState(0);
   const reducedRef = useRef(false);
 
@@ -74,20 +74,28 @@ export function PhaseWalkthrough() {
   // motion allowed only; otherwise we keep the stacked baseline that SSR drew.
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const wide = window.matchMedia("(min-width: 1024px)");
     const sync = () => {
       reducedRef.current = motion.matches;
-      // Run the pinned experience at every width; only reduced-motion opts out
-      // (it gets the stacked fallback below).
-      setEnhanced(!motion.matches);
+      // Reduced motion → stacked cards (also the SSR baseline). Otherwise the
+      // desktop gets the pinned scroll-jack and mobile gets native scroll-snap.
+      // Pinning fights the mobile address bar — it resizes the viewport mid-
+      // scroll, which is the shake — so phones use a real snap scroller instead.
+      if (motion.matches) setMode("stacked");
+      else setMode(wide.matches ? "pinned" : "snap");
     };
     sync();
     motion.addEventListener("change", sync);
-    return () => motion.removeEventListener("change", sync);
+    wide.addEventListener("change", sync);
+    return () => {
+      motion.removeEventListener("change", sync);
+      wide.removeEventListener("change", sync);
+    };
   }, []);
 
   // Map scroll position within the track to the active phase index.
   useEffect(() => {
-    if (!enhanced) return;
+    if (mode !== "pinned") return;
     let frame = 0;
     const onScroll = () => {
       if (frame) return;
@@ -125,7 +133,7 @@ export function PhaseWalkthrough() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, [enhanced]);
+  }, [mode]);
 
   const jump = useCallback((i: number) => {
     const el = sectionRef.current;
@@ -144,9 +152,9 @@ export function PhaseWalkthrough() {
       ref={sectionRef}
       aria-label="How a Jam session works"
       className="relative px-6 md:px-8 lg:px-12 xl:px-[80px]"
-      style={enhanced ? { height: `${PHASES.length * 100}vh` } : undefined}
+      style={mode === "pinned" ? { height: `${PHASES.length * 100}vh` } : undefined}
     >
-      {enhanced ? (
+      {mode === "pinned" ? (
         <div
           ref={stageRef}
           className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28"
@@ -174,6 +182,29 @@ export function PhaseWalkthrough() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      ) : mode === "snap" ? (
+        <div className="mx-auto w-full max-w-[1758px] py-12">
+          <SectionHeading />
+          {/* Mobile: a dedicated snap scroller, so one swipe advances exactly
+              one card, browser-native. No sticky and no innerHeight math, so the
+              address bar resizing the viewport mid-scroll can't make it shake. */}
+          <div className="mt-10 h-[100svh] snap-y snap-mandatory overflow-y-auto">
+            {PHASES.map((phase, i) => (
+              <div
+                key={phase.key}
+                className="flex min-h-[100svh] snap-start snap-always flex-col justify-center gap-4 py-8"
+              >
+                <StaticLegend active={i} />
+                <div className="rounded-[28px] bg-white p-6 md:p-10">
+                  <div className="flex flex-col gap-8">
+                    <PhaseText phase={phase} />
+                    <PhaseVisual phase={phase} />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ) : (
