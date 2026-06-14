@@ -65,85 +65,53 @@ const PHASES: Phase[] = [
 
 export function PhaseWalkthrough() {
   const sectionRef = useRef<HTMLElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState<"stacked" | "snap" | "pinned">("stacked");
+  const bandsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const [enhanced, setEnhanced] = useState(false);
   const [active, setActive] = useState(0);
   const reducedRef = useRef(false);
 
-  // Decide once mounted whether to run the pinned experience. Wide viewport +
-  // motion allowed only; otherwise we keep the stacked baseline that SSR drew.
+  // Run the pinned walkthrough whenever motion is allowed (at every width);
+  // reduced motion keeps the stacked baseline that SSR already drew.
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const wide = window.matchMedia("(min-width: 1024px)");
     const sync = () => {
       reducedRef.current = motion.matches;
-      // Reduced motion → stacked cards (also the SSR baseline). Otherwise the
-      // desktop gets the pinned scroll-jack and mobile gets native scroll-snap.
-      // Pinning fights the mobile address bar — it resizes the viewport mid-
-      // scroll, which is the shake — so phones use a real snap scroller instead.
-      if (motion.matches) setMode("stacked");
-      else setMode(wide.matches ? "pinned" : "snap");
+      setEnhanced(!motion.matches);
     };
     sync();
     motion.addEventListener("change", sync);
-    wide.addEventListener("change", sync);
-    return () => {
-      motion.removeEventListener("change", sync);
-      wide.removeEventListener("change", sync);
-    };
+    return () => motion.removeEventListener("change", sync);
   }, []);
 
-  // Map scroll position within the track to the active phase index.
+  // Drive the active phase with an IntersectionObserver, not a scroll handler.
+  // Invisible band markers tile the scroll track (one per phase); rootMargin
+  // collapses the root to a 1px line at the viewport's vertical centre, so
+  // exactly one band crosses it at a time and we flip state only on that
+  // crossing. There is no per-frame scroll math and no read of innerHeight —
+  // the latter is what made the old version jitter on mobile, where the address
+  // bar resizes the viewport mid-scroll and shifted the math underneath us.
   useEffect(() => {
-    if (mode !== "pinned") return;
-    let frame = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        const el = sectionRef.current;
-        const stage = stageRef.current;
-        if (!el || !stage) return;
-        // The pinned scroll distance is the track height minus the *sticky
-        // stage* height — NOT window.innerHeight. On mobile innerHeight shrinks
-        // and grows as the address bar shows/hides during a scroll, which moved
-        // this denominator underneath us and made the active index flip back
-        // and forth at a card boundary (the "shake"). The stage is sized in svh
-        // (a stable unit), so measuring it keeps the mapping put.
-        const total = el.offsetHeight - stage.offsetHeight;
-        const scrolled = Math.min(Math.max(-el.getBoundingClientRect().top, 0), total);
-        const p = total > 0 ? scrolled / total : 0;
-        const pos = p * PHASES.length; // 0..PHASES.length, in card units
-        // Hysteresis: only cross into the next/previous card once we're a little
-        // past the boundary, so a few px of momentum wobble can't toggle it.
-        const MARGIN = 0.12;
-        setActive((prev) => {
-          let next = prev;
-          if (pos >= prev + 1 + MARGIN) next = Math.floor(pos);
-          else if (pos < prev - MARGIN) next = Math.floor(pos);
-          return Math.min(PHASES.length - 1, Math.max(0, next));
-        });
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      if (frame) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [mode]);
+    if (!enhanced) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const i = bandsRef.current.indexOf(e.target as HTMLDivElement);
+          if (i >= 0) setActive(i);
+        }
+      },
+      { rootMargin: "-50% 0px -50% 0px", threshold: 0 },
+    );
+    bandsRef.current.forEach((el) => el && obs.observe(el));
+    return () => obs.disconnect();
+  }, [enhanced]);
 
   const jump = useCallback((i: number) => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const stageH = stageRef.current?.offsetHeight ?? window.innerHeight;
-    const total = el.offsetHeight - stageH;
-    const target = el.offsetTop + ((i + 0.5) / PHASES.length) * total;
-    window.scrollTo({
-      top: target,
+    // Centre the i-th band on screen; its crossing the centre line is exactly
+    // what the observer above keys on, so the active phase follows.
+    bandsRef.current[i]?.scrollIntoView({
       behavior: reducedRef.current ? "auto" : "smooth",
+      block: "center",
     });
   }, []);
 
@@ -152,14 +120,31 @@ export function PhaseWalkthrough() {
       ref={sectionRef}
       aria-label="How a Jam session works"
       className="relative px-6 md:px-8 lg:px-12 xl:px-[80px]"
-      style={mode === "pinned" ? { height: `${PHASES.length * 100}vh` } : undefined}
+      style={enhanced ? { height: `${PHASES.length * 100}vh` } : undefined}
     >
-      {mode === "pinned" ? (
-        <div
-          ref={stageRef}
-          className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28"
-        >
-          <SectionHeading />
+      {enhanced ? (
+        <>
+          {/* Invisible band markers tiling the scroll track — one per phase.
+              The observer watches which band is crossing the viewport centre to
+              set the active phase. aria-hidden + zero content: a pure scroll
+              probe, never seen or read by AT. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            {PHASES.map((phase, i) => (
+              <div
+                key={phase.key}
+                ref={(el) => {
+                  bandsRef.current[i] = el;
+                }}
+                className="absolute inset-x-0"
+                style={{
+                  top: `${(i * 100) / PHASES.length}%`,
+                  height: `${100 / PHASES.length}%`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28">
+            <SectionHeading />
           <div className="mx-auto flex w-full max-w-[1758px] flex-col items-stretch gap-5 lg:flex-row lg:gap-6 xl:gap-10">
             <Legend active={active} onJump={jump} />
             <div className="relative min-w-0 flex-1 rounded-[24px] bg-white p-6 md:p-10 lg:rounded-[32px] xl:p-16">
@@ -184,29 +169,7 @@ export function PhaseWalkthrough() {
             </div>
           </div>
         </div>
-      ) : mode === "snap" ? (
-        <div className="mx-auto w-full max-w-[1758px] py-12">
-          <SectionHeading />
-          {/* Mobile: a dedicated snap scroller, so one swipe advances exactly
-              one card, browser-native. No sticky and no innerHeight math, so the
-              address bar resizing the viewport mid-scroll can't make it shake. */}
-          <div className="mt-10 h-[100svh] snap-y snap-mandatory overflow-y-auto">
-            {PHASES.map((phase, i) => (
-              <div
-                key={phase.key}
-                className="flex min-h-[100svh] snap-start snap-always flex-col justify-center gap-4 py-8"
-              >
-                <StaticLegend active={i} />
-                <div className="rounded-[28px] bg-white p-6 md:p-10">
-                  <div className="flex flex-col gap-8">
-                    <PhaseText phase={phase} />
-                    <PhaseVisual phase={phase} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        </>
       ) : (
         <div className="mx-auto flex max-w-[1758px] flex-col gap-12 py-12 lg:gap-16 lg:py-20">
           <SectionHeading />
