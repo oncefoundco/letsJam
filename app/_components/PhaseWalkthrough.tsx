@@ -65,6 +65,7 @@ const PHASES: Phase[] = [
 
 export function PhaseWalkthrough() {
   const sectionRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [enhanced, setEnhanced] = useState(false);
   const [active, setActive] = useState(0);
   const reducedRef = useRef(false);
@@ -93,12 +94,27 @@ export function PhaseWalkthrough() {
       frame = requestAnimationFrame(() => {
         frame = 0;
         const el = sectionRef.current;
-        if (!el) return;
-        const total = el.offsetHeight - window.innerHeight;
+        const stage = stageRef.current;
+        if (!el || !stage) return;
+        // The pinned scroll distance is the track height minus the *sticky
+        // stage* height — NOT window.innerHeight. On mobile innerHeight shrinks
+        // and grows as the address bar shows/hides during a scroll, which moved
+        // this denominator underneath us and made the active index flip back
+        // and forth at a card boundary (the "shake"). The stage is sized in svh
+        // (a stable unit), so measuring it keeps the mapping put.
+        const total = el.offsetHeight - stage.offsetHeight;
         const scrolled = Math.min(Math.max(-el.getBoundingClientRect().top, 0), total);
         const p = total > 0 ? scrolled / total : 0;
-        const idx = Math.min(PHASES.length - 1, Math.floor(p * PHASES.length));
-        setActive((prev) => (prev === idx ? prev : idx));
+        const pos = p * PHASES.length; // 0..PHASES.length, in card units
+        // Hysteresis: only cross into the next/previous card once we're a little
+        // past the boundary, so a few px of momentum wobble can't toggle it.
+        const MARGIN = 0.12;
+        setActive((prev) => {
+          let next = prev;
+          if (pos >= prev + 1 + MARGIN) next = Math.floor(pos);
+          else if (pos < prev - MARGIN) next = Math.floor(pos);
+          return Math.min(PHASES.length - 1, Math.max(0, next));
+        });
       });
     };
     onScroll();
@@ -114,7 +130,8 @@ export function PhaseWalkthrough() {
   const jump = useCallback((i: number) => {
     const el = sectionRef.current;
     if (!el) return;
-    const total = el.offsetHeight - window.innerHeight;
+    const stageH = stageRef.current?.offsetHeight ?? window.innerHeight;
+    const total = el.offsetHeight - stageH;
     const target = el.offsetTop + ((i + 0.5) / PHASES.length) * total;
     window.scrollTo({
       top: target,
@@ -130,7 +147,10 @@ export function PhaseWalkthrough() {
       style={enhanced ? { height: `${PHASES.length * 100}vh` } : undefined}
     >
       {enhanced ? (
-        <div className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28">
+        <div
+          ref={stageRef}
+          className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28"
+        >
           <SectionHeading />
           <div className="mx-auto flex w-full max-w-[1758px] flex-col items-stretch gap-5 lg:flex-row lg:gap-6 xl:gap-10">
             <Legend active={active} onJump={jump} />
