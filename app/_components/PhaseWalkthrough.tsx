@@ -67,11 +67,14 @@ export function PhaseWalkthrough() {
   const sectionRef = useRef<HTMLElement>(null);
   const bandsRef = useRef<(HTMLDivElement | null)[]>([]);
   const [enhanced, setEnhanced] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [active, setActive] = useState(0);
   const reducedRef = useRef(false);
 
-  // Run the pinned walkthrough whenever motion is allowed (at every width);
-  // reduced motion keeps the stacked baseline that SSR already drew.
+  // Run the enhanced walkthrough whenever motion is allowed; reduced motion
+  // keeps the stacked baseline that SSR already drew. The enhanced experience
+  // then splits by width: desktop gets the pinned crossfade (below), mobile
+  // gets a vertical scroll-snap carousel (one swipe = one card).
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => {
@@ -83,6 +86,14 @@ export function PhaseWalkthrough() {
     return () => motion.removeEventListener("change", sync);
   }, []);
 
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktop(wide.matches);
+    sync();
+    wide.addEventListener("change", sync);
+    return () => wide.removeEventListener("change", sync);
+  }, []);
+
   // Drive the active phase with an IntersectionObserver, not a scroll handler.
   // Invisible band markers tile the scroll track (one per phase); rootMargin
   // collapses the root to a 1px line at the viewport's vertical centre, so
@@ -91,7 +102,7 @@ export function PhaseWalkthrough() {
   // the latter is what made the old version jitter on mobile, where the address
   // bar resizes the viewport mid-scroll and shifted the math underneath us.
   useEffect(() => {
-    if (!enhanced) return;
+    if (!enhanced || !isDesktop) return;
     const obs = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -104,7 +115,7 @@ export function PhaseWalkthrough() {
     );
     bandsRef.current.forEach((el) => el && obs.observe(el));
     return () => obs.disconnect();
-  }, [enhanced]);
+  }, [enhanced, isDesktop]);
 
   const jump = useCallback((i: number) => {
     // Centre the i-th band on screen; its crossing the centre line is exactly
@@ -120,9 +131,13 @@ export function PhaseWalkthrough() {
       ref={sectionRef}
       aria-label="How a Jam session works"
       className="relative px-6 md:px-8 lg:px-12 xl:px-[80px]"
-      style={enhanced ? { height: `${PHASES.length * 100}vh` } : undefined}
+      style={
+        enhanced && isDesktop
+          ? { height: `${PHASES.length * 100}vh` }
+          : undefined
+      }
     >
-      {enhanced ? (
+      {enhanced && isDesktop ? (
         <>
           {/* Invisible band markers tiling the scroll track — one per phase.
               The observer watches which band is crossing the viewport centre to
@@ -170,6 +185,50 @@ export function PhaseWalkthrough() {
           </div>
         </div>
         </>
+      ) : enhanced ? (
+        // Mobile (motion allowed): a self-contained vertical scroll-snap
+        // carousel. Each phase is one full-height panel that snaps to the top,
+        // so a single swipe advances exactly one card. The scroller is sized in
+        // svh end-to-end (no vh/svh mix), so the address bar showing/hiding no
+        // longer shifts the layout mid-swipe — the old source of the jitter.
+        <div className="flex flex-col">
+          <div className="py-10">
+            <SectionHeading />
+          </div>
+          <div className="h-[100svh] snap-y snap-mandatory overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {PHASES.map((phase, i) => (
+              <div
+                key={phase.key}
+                className="flex h-[100svh] snap-start flex-col justify-center gap-3 pb-8"
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className="text-[18px] leading-[0.9] text-black"
+                    style={publicSans}
+                  >
+                    {phase.key}
+                  </span>
+                  <span className="flex items-center gap-1.5" aria-hidden>
+                    {PHASES.map((seg, d) => (
+                      <span
+                        key={seg.key}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          d === i ? "w-4 bg-black" : "w-1.5 bg-black/20"
+                        }`}
+                      />
+                    ))}
+                  </span>
+                </div>
+                <div className="min-w-0 rounded-[28px] bg-white p-6">
+                  <div className="flex flex-col gap-6">
+                    <PhaseText phase={phase} />
+                    <PhaseVisual phase={phase} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="mx-auto flex max-w-[1758px] flex-col gap-12 py-12 lg:gap-16 lg:py-20">
           <SectionHeading />
