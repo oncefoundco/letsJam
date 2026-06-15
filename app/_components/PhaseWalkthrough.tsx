@@ -71,11 +71,15 @@ export function PhaseWalkthrough() {
   const sectionRef = useRef<HTMLElement>(null);
   const bandsRef = useRef<(HTMLDivElement | null)[]>([]);
   const [enhanced, setEnhanced] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [active, setActive] = useState(0);
   const reducedRef = useRef(false);
 
-  // Run the pinned walkthrough whenever motion is allowed (at every width);
-  // reduced motion keeps the stacked baseline that SSR already drew.
+  // The pinned, scroll-driven stage runs only on a wide viewport with motion
+  // allowed. On mobile its full-viewport sticky stage on a tall scroll track
+  // rubber-bands against iOS Safari's momentum scroll + dynamic address bar, so
+  // narrow viewports (like reduced-motion / no-JS) use the stacked cards — no
+  // pin, no sticky, no scroll-jack, so nothing to bounce.
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => {
@@ -87,6 +91,17 @@ export function PhaseWalkthrough() {
     return () => motion.removeEventListener("change", sync);
   }, []);
 
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktop(wide.matches);
+    sync();
+    wide.addEventListener("change", sync);
+    return () => wide.removeEventListener("change", sync);
+  }, []);
+
+  // The pinned stage is gated to wide + motion; everything else is stacked.
+  const pinned = enhanced && isDesktop;
+
   // Drive the active phase with an IntersectionObserver, not a scroll handler.
   // Invisible band markers tile the scroll track (one per phase); rootMargin
   // collapses the root to a 1px line at the viewport's vertical centre, so
@@ -95,7 +110,7 @@ export function PhaseWalkthrough() {
   // the latter is what made the old version jitter on mobile, where the address
   // bar resizes the viewport mid-scroll and shifted the math underneath us.
   useEffect(() => {
-    if (!enhanced) return;
+    if (!pinned) return;
     const obs = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -108,7 +123,7 @@ export function PhaseWalkthrough() {
     );
     bandsRef.current.forEach((el) => el && obs.observe(el));
     return () => obs.disconnect();
-  }, [enhanced]);
+  }, [pinned]);
 
   const jump = useCallback((i: number) => {
     // Centre the i-th band on screen; its crossing the centre line is exactly
@@ -124,9 +139,9 @@ export function PhaseWalkthrough() {
       ref={sectionRef}
       aria-label="How a Jam session works"
       className="relative px-6 md:px-8 lg:px-12 xl:px-[80px]"
-      style={enhanced ? { height: `${PHASES.length * 100}svh` } : undefined}
+      style={pinned ? { height: `${PHASES.length * 100}svh` } : undefined}
     >
-      {enhanced ? (
+      {pinned ? (
         <>
           {/* Invisible band markers tiling the scroll track — one per phase.
               The observer watches which band is crossing the viewport centre to
