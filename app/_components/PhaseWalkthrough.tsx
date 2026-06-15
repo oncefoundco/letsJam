@@ -124,42 +124,30 @@ export function PhaseWalkthrough() {
       ref={sectionRef}
       aria-label="How a Jam session works"
       className="relative px-6 md:px-8 lg:px-12 xl:px-[80px]"
+      style={enhanced ? { height: `${PHASES.length * 100}svh` } : undefined}
     >
       {enhanced ? (
-        // Same pinned crossfade; the wrapper's scroll mechanics flip at lg.
-        // Below lg (touch): it's a self-contained 100svh scroll-snap container
-        // whose inner track is one viewport per phase, and each phase's band is
-        // a mandatory snap point (snap-stop: always) — so a single swipe snaps
-        // to exactly the next card instead of free-scrolling a fraction of it.
-        // Everything is svh, so the mobile address bar can't drift the layout.
-        // At lg and up the wrapper reverts to document flow (h-auto, no
-        // overflow, snap-none): the page scrolls the 400svh track and the stage
-        // pins to the viewport — the original desktop behaviour, untouched.
-        <div className="h-[100svh] snap-y snap-mandatory overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:h-auto lg:snap-none lg:overflow-visible">
-          <div
-            className="relative"
-            style={{ height: `${PHASES.length * 100}svh` }}
-          >
-            {/* Invisible band markers tiling the scroll track — one per phase,
-                each a mandatory snap point. The observer watches which band is
-                crossing the viewport centre to set the active phase. aria-hidden
-                + zero content: a pure scroll probe, never seen or read by AT. */}
-            <div aria-hidden className="pointer-events-none absolute inset-0">
-              {PHASES.map((phase, i) => (
-                <div
-                  key={phase.key}
-                  ref={(el) => {
-                    bandsRef.current[i] = el;
-                  }}
-                  className="absolute inset-x-0 snap-center snap-always"
-                  style={{
-                    top: `${(i * 100) / PHASES.length}%`,
-                    height: `${100 / PHASES.length}%`,
-                  }}
-                />
-              ))}
-            </div>
-            <div className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28">
+        <>
+          {/* Invisible band markers tiling the scroll track — one per phase.
+              The observer watches which band is crossing the viewport centre to
+              set the active phase. aria-hidden + zero content: a pure scroll
+              probe, never seen or read by AT. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            {PHASES.map((phase, i) => (
+              <div
+                key={phase.key}
+                ref={(el) => {
+                  bandsRef.current[i] = el;
+                }}
+                className="absolute inset-x-0"
+                style={{
+                  top: `${(i * 100) / PHASES.length}%`,
+                  height: `${100 / PHASES.length}%`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="sticky top-0 flex h-[100svh] flex-col items-stretch justify-center gap-16 lg:gap-28">
             <SectionHeading />
           <div className="mx-auto flex w-full max-w-[1758px] flex-col items-stretch gap-5 lg:flex-row lg:gap-6 xl:gap-10">
             <Legend active={active} onJump={jump} />
@@ -184,9 +172,8 @@ export function PhaseWalkthrough() {
               </div>
             </div>
           </div>
-            </div>
-          </div>
         </div>
+        </>
       ) : (
         <div className="mx-auto flex max-w-[1758px] flex-col gap-12 py-12 lg:gap-16 lg:py-20">
           <SectionHeading />
