@@ -159,12 +159,44 @@ function schedulePersist(session: StoredSession): void {
   }
 }
 
+// Bound a promise so a dead dependency can't stall the request for the client's
+// full retry budget. Attaches a rejection handler to the wrapped promise so a
+// late failure (after we've already timed out) never surfaces as an unhandled
+// rejection.
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); }
+    );
+  });
+}
+
 // Fast path for a brand-new room: a single-statement insert (see
 // insertNewSession) instead of the general delete-and-reinsert persistSession,
 // then prime the cache. Use only when the session is known not to exist yet.
 export async function createSession(session: StoredSession): Promise<void> {
+  // Postgres is the durable write — let a real failure here throw (→ 500).
   await insertNewSession(session);
-  await kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS });
+  // Warming the read cache is best-effort. getSession backfills on a miss, so a
+  // Redis outage must NOT fail jam creation. It did once: the Upstash KV store
+  // was deleted, so every kv.set retried for ~6s and then 500'd the whole POST
+  // even though the jam was already safe in Postgres. Bound the wait so a dead
+  // cache can't add the client's full retry budget to every create, and swallow
+  // the failure — the next read repopulates the cache from the source of truth.
+  try {
+    await withTimeout(
+      kv.set(sessionKey(session.id), session, { ex: SESSION_TTL_SECONDS }),
+      2000,
+      "createSession cache warm"
+    );
+  } catch (err) {
+    console.error(
+      `createSession: cache warm failed for ${session.id} (serving from Postgres):`,
+      err
+    );
+  }
 }
 
 export async function getSession(
