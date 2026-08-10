@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { kv } from "@vercel/kv";
+import { createClient } from "@vercel/kv";
 import { AVATAR_COLORS } from "./avatar";
 import { DEFAULT_PHASE_MS, type PhaseTimer, type TimerPhase } from "./timer";
 import {
@@ -29,6 +29,15 @@ export { loadVoteStatus } from "./sessionStore";
 
 // Sessions live in Upstash Redis (via @vercel/kv).
 // 24h TTL matches the Whereby room's endDate so storage and the call expire together.
+
+// The default `kv` singleton only reads the UNPREFIXED KV_REST_API_URL/TOKEN.
+// Our Vercel-connected store exposes them under the `letsjam_` prefix, so build
+// the client explicitly — preferring the unprefixed names if they're ever added,
+// falling back to the prefixed ones the integration actually provisions.
+const kv = createClient({
+  url: process.env.KV_REST_API_URL ?? process.env.letsjam_KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN ?? process.env.letsjam_KV_REST_API_TOKEN,
+});
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24;
 
