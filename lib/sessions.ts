@@ -31,12 +31,17 @@ export { loadVoteStatus } from "./sessionStore";
 // 24h TTL matches the Whereby room's endDate so storage and the call expire together.
 
 // The default `kv` singleton only reads the UNPREFIXED KV_REST_API_URL/TOKEN.
-// Our Vercel-connected store exposes them under the `letsjam_` prefix, so build
-// the client explicitly — preferring the unprefixed names if they're ever added,
-// falling back to the prefixed ones the integration actually provisions.
+// Our live Vercel-connected store exposes its creds under the `letsjam_` prefix,
+// so build the client explicitly and PREFER the prefixed names. Precedence
+// matters: disconnecting the previous (deleted) store left its stale unprefixed
+// KV_REST_API_URL behind in Vercel Production, pointing at a host that no longer
+// resolves. Preferring unprefixed sent every write to that dead host (confirmed
+// by runtime logs: "cache warm timed out after 2000ms"). Prefer the prefixed
+// vars of the store we actually provisioned; fall back to unprefixed only if the
+// prefix is ever dropped.
 const kv = createClient({
-  url: process.env.KV_REST_API_URL ?? process.env.letsjam_KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN ?? process.env.letsjam_KV_REST_API_TOKEN,
+  url: process.env.letsjam_KV_REST_API_URL ?? process.env.KV_REST_API_URL,
+  token: process.env.letsjam_KV_REST_API_TOKEN ?? process.env.KV_REST_API_TOKEN,
 });
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24;
